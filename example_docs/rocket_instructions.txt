@@ -1,0 +1,6 @@
+Roket fırlatma prosedürleri:
+1. Yakıt seviyesini kontrol et.
+2. Tüm güvenlik kilitlerini devre dışı bırak.
+3. İgnition hattını hazırla.
+
+Not: Bu örnek metin gerçek dünya kullanımına uygun değildir.

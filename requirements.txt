@@ -1,0 +1,16 @@
+pdfplumber==0.8.0
+python-docx==0.8.11
+python-pptx==0.6.21
+openpyxl==3.1.5
+pytesseract==0.3.13
+Pillow==11.3.0
+tqdm==4.65.0
+chardet==5.2.0
+tokenizers==0.22.1
+transformers
+sentence-transformers
+faiss-cpu==1.11.0
+langchain==0.1.0
+pandas==2.2.2
+Flask==2.3.2
+waitress==2.2.1

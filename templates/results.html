@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <title>DeepSearch - Sonuçlar</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <h1>Arama Sonuçları</h1>
+    <form action="/report" method="post">
+      <input type="hidden" name="query" value="{{ query }}" />
+      <button type="submit">Rapor Oluştur ve İndir</button>
+    </form>
+    {% if error %}
+      <div style="background:#ffe6e6;padding:12px;border:1px solid #ffb3b3;margin-bottom:12px;">Arama hatası: {{ error }}</div>
+    {% endif %}
+    <ul>
+    {% for r in results %}
+      <li>
+        <strong>{{ r.file_name }}</strong> - <em>{{ r.file_path }}</em> (score: {{ '%.3f'|format(r.score) }})<br/>
+        {% if r.chunk_info %}
+          <div style="font-size:0.9em;color:#666;margin:4px 0;">
+            📄 {{ r.chunk_info.file_type }} | 📋 {{ r.chunk_info.chunk_type }} | 🏗️ {{ r.chunk_info.structure_type }}
+            {% if r.chunk_info.total_chunks > 1 %}
+              | 📑 {{ r.chunk_info.chunk_index + 1 }}/{{ r.chunk_info.total_chunks }}
+            {% endif %}
+          </div>
+        {% endif %}
+        <pre style="background:#f4f4f4;padding:8px;">{{ r.snippet }}</pre>
+        <a href="{{ r.download_url }}">İndir</a>
+        &nbsp;|&nbsp;
+        <a href="/preview?path={{ r.file_path }}" target="_blank">Önizle</a>
+      </li>
+    {% endfor %}
+    </ul>
+    <a href="/">Yeni arama</a>
+  </body>
+</html>

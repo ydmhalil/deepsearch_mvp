@@ -1,0 +1,3 @@
+Uçuş kontrol bilgisayarı için kısa notlar:
+- Sensör kalibrasyonu her 30 günde bir yapılmalı.
+- Telemetri frekansları 400-420 MHz aralığında.
