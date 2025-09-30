@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İçerik İnsights Dashboard - DeepSearch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .insights-card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+            margin-bottom: 1.5rem;
+        }
+        .insights-card:hover {
+            transform: translateY(-2px);
+        }
+        .recommendation-card {
+            border-left: 5px solid;
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 0 10px 10px 0;
+        }
+        .priority-high {
+            border-left-color: #dc3545;
+            background: linear-gradient(90deg, #ffebee 0%, #ffffff 100%);
+        }
+        .priority-medium {
+            border-left-color: #ffc107;
+            background: linear-gradient(90deg, #fff8e1 0%, #ffffff 100%);
+        }
+        .priority-low {
+            border-left-color: #17a2b8;
+            background: linear-gradient(90deg, #e0f7fa 0%, #ffffff 100%);
+        }
+        .trend-item {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #007bff;
+        }
+        .content-gap-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .metric-badge {
+            font-size: 1.2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+        }
+        .analysis-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .topic-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            margin: 0.25rem;
+            font-size: 0.9rem;
+        }
+        .demand-indicator {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .demand-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+            transition: width 0.3s ease;
+        }
+        .time-pattern-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 0.25rem 0;
+        }
+        .analysis-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+        .insight-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .action-btn {
+            border-radius: 25px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                🧠 DeepSearch Insights
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Ana Sayfa</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('kobi_dashboard') }}">KOBİ Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('insights_dashboard') }}">İçerik Insights</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            👤 {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Çıkış</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Summary Section -->
+        <div class="insight-summary">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2 class="mb-3">
+                        <i class="fas fa-brain me-2"></i>
+                        İçerik İş Zekası Dashboard
+                    </h2>
+                    <p class="mb-0">
+                        Belge analizleri, içerik trendleri ve iş süreçleriniz için akıllı öneriler
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-light action-btn me-2" onclick="refreshInsights()">
+                        <i class="fas fa-sync-alt me-1"></i> Yenile
+                    </button>
+                    <button class="btn btn-outline-light action-btn" onclick="exportInsights()">
+                        <i class="fas fa-download me-1"></i> Rapor Al
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="insights-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line analysis-icon text-success"></i>
+                        <h5>{{ content_trends.topic_trends|length }}</h5>
+                        <small class="text-muted">Aktif Trend</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="insights-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle analysis-icon text-warning"></i>
+                        <h5>{{ content_trends.content_demand|length }}</h5>
+                        <small class="text-muted">İçerik Açığı</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="insights-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-lightbulb analysis-icon text-info"></i>
+                        <h5>{{ recommendations|length }}</h5>
+                        <small class="text-muted">İş Önerisi</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="insights-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock analysis-icon text-primary"></i>
+                        <h5>{{ content_trends.time_patterns.total_searches or 0 }}</h5>
+                        <small class="text-muted">Toplam Analiz</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Recommendations -->
+        <div class="analysis-section">
+            <h4 class="mb-4">
+                <i class="fas fa-lightbulb text-warning me-2"></i>
+                İş Önerileri ve Aksiyonlar
+            </h4>
+            
+            {% if recommendations %}
+                {% for rec in recommendations %}
+                <div class="recommendation-card priority-{{ rec.priority }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-2">
+                                {% if rec.priority == 'high' %}
+                                    <i class="fas fa-exclamation-circle text-danger me-1"></i>
+                                {% elif rec.priority == 'medium' %}
+                                    <i class="fas fa-info-circle text-warning me-1"></i>
+                                {% else %}
+                                    <i class="fas fa-check-circle text-info me-1"></i>
+                                {% endif %}
+                                {{ rec.title }}
+                            </h6>
+                            <p class="mb-2">{{ rec.description }}</p>
+                            <div class="mb-2">
+                                <strong>Aksiyon:</strong> {{ rec.action }}
+                            </div>
+                            <div class="text-muted">
+                                <small><strong>Beklenen Etki:</strong> {{ rec.impact }}</small>
+                            </div>
+                        </div>
+                        <div class="ms-3">
+                            <span class="badge bg-{{ 'danger' if rec.priority == 'high' else 'warning' if rec.priority == 'medium' else 'info' }}">
+                                {{ rec.priority.upper() }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <h5>Harika! Herhangi bir kritik öneri yok</h5>
+                    <p>Sisteminiz optimal çalışıyor</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Content Trends Analysis -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="analysis-section">
+                    <h5 class="mb-4">
+                        <i class="fas fa-trending-up text-success me-2"></i>
+                        Konu Trendleri
+                    </h5>
+                    
+                    {% for category, topics in content_trends.topic_trends.items() %}
+                        {% if topics %}
+                        <div class="trend-item">
+                            <strong>{{ category.title() }}:</strong>
+                            <div class="mt-2">
+                                {% for topic in topics[:3] %}
+                                    <span class="topic-tag">
+                                        {{ topic.word }} 
+                                        <small>({{ topic.frequency }})</small>
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if not content_trends.topic_trends %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-chart-line fa-2x mb-2"></i>
+                            <p>Henüz trend analizi için yeterli veri yok</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="analysis-section">
+                    <h5 class="mb-4">
+                        <i class="fas fa-search text-primary me-2"></i>
+                        Arama Davranış Analizi
+                    </h5>
+                    
+                    {% set patterns = content_trends.search_patterns %}
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="metric-badge bg-primary text-white">
+                                {{ "%.1f"|format(patterns.avg_results_per_search or 0) }}
+                            </div>
+                            <small class="d-block text-muted mt-1">Ort. Sonuç</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-badge bg-warning text-white">
+                                {{ patterns.zero_result_queries or 0 }}
+                            </div>
+                            <small class="d-block text-muted mt-1">Sonuçsuz Arama</small>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="metric-badge bg-info text-white">
+                            {{ "%.1f"|format(patterns.query_length_avg or 0) }}
+                        </div>
+                        <small class="d-block text-muted mt-1">Ort. Sorgu Uzunluğu</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Demand Analysis -->
+        {% if content_trends.content_demand %}
+        <div class="analysis-section">
+            <h5 class="mb-4">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                İçerik Eksiklikleri ve Fırsatlar
+            </h5>
+            
+            <div class="row">
+                {% for demand in content_trends.content_demand[:6] %}
+                <div class="col-md-6 mb-3">
+                    <div class="content-gap-item">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>{{ demand.topic }}</strong>
+                            <span class="badge bg-warning">{{ demand.demand_frequency }} talep</span>
+                        </div>
+                        <div class="demand-indicator mb-2">
+                            <div class="demand-fill" style="width: {{ min(demand.demand_frequency * 20, 100) }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ demand.recommendation }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Time Patterns -->
+        {% if content_trends.time_patterns %}
+        <div class="analysis-section">
+            <h5 class="mb-4">
+                <i class="fas fa-clock text-info me-2"></i>
+                Kullanım Zamanı Analizi
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Yoğun Saatler</h6>
+                    {% for hour, count in content_trends.time_patterns.peak_hours %}
+                    <div class="time-pattern-item">
+                        <span>{{ hour }}:00 - {{ hour+1 }}:00</span>
+                        <span class="badge bg-primary">{{ count }} arama</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h6>Aktif Günler</h6>
+                    {% for day, count in content_trends.time_patterns.busy_days %}
+                    <div class="time-pattern-item">
+                        <span>{{ day }}</span>
+                        <span class="badge bg-success">{{ count }} arama</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Document Analysis Tool -->
+        <div class="analysis-section">
+            <h5 class="mb-4">
+                <i class="fas fa-file-alt text-secondary me-2"></i>
+                Belge Analizi Aracı
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control" 
+                               id="documentPath" 
+                               placeholder="Analiz edilecek belge yolunu girin (örn: data/example.pdf)">
+                        <button class="btn btn-primary" onclick="analyzeDocument()">
+                            <i class="fas fa-search me-1"></i> Analiz Et
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-outline-secondary w-100" onclick="showAnalysisHelp()">
+                        <i class="fas fa-question-circle me-1"></i> Nasıl Kullanılır?
+                    </button>
+                </div>
+            </div>
+            
+            <div id="analysisResult" class="mt-4" style="display: none;">
+                <!-- Analysis results will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Help Modal -->
+    <div class="modal fade" id="analysisHelpModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Belge Analizi Nasıl Kullanılır?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Adım 1: Belge Yolu</h6>
+                    <p>Analiz etmek istediğiniz belgenin tam yolunu girin.</p>
+                    
+                    <h6>Adım 2: Analiz</h6>
+                    <p>Sistem belgeyi analiz ederek şunları sağlar:</p>
+                    <ul>
+                        <li>İş kategorizasyonu</li>
+                        <li>Önem seviyesi değerlendirmesi</li>
+                        <li>Anahtar konular</li>
+                        <li>Aksiyon maddeleri</li>
+                        <li>İş varlıkları (tarih, miktar, vs.)</li>
+                    </ul>
+                    
+                    <h6>Adım 3: Sonuçlar</h6>
+                    <p>Analiz sonuçları otomatik olarak kaydedilir ve raporlarda kullanılır.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function refreshInsights() {
+            location.reload();
+        }
+        
+        function exportInsights() {
+            window.location.href = '/kobi/export/pdf';
+        }
+        
+        function analyzeDocument() {
+            const path = document.getElementById('documentPath').value.trim();
+            if (!path) {
+                alert('Lütfen belge yolunu girin');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Belge analiz ediliyor...</p>
+                </div>
+            `;
+            
+            fetch('/insights/analyze_document', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ file_path: path })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAnalysisResult(data.analysis);
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Hata: ${data.message}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Analysis error:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Analiz sırasında hata oluştu
+                    </div>
+                `;
+            });
+        }
+        
+        function displayAnalysisResult(analysis) {
+            const resultDiv = document.getElementById('analysisResult');
+            
+            resultDiv.innerHTML = `
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-file-alt me-2"></i>${analysis.file_path}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <strong>Belge Türü:</strong> ${analysis.document_type}
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Önem Seviyesi:</strong> 
+                                <span class="badge bg-${analysis.importance_level === 'high' ? 'danger' : analysis.importance_level === 'medium' ? 'warning' : 'info'}">
+                                    ${analysis.importance_level}
+                                </span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Kelime Sayısı:</strong> ${analysis.word_count.toLocaleString()}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>İş Kategorileri:</h6>
+                                ${Object.entries(analysis.business_categories).map(([cat, score]) => 
+                                    score > 0 ? `<div class="mb-1">
+                                        <span class="topic-tag">${cat}: ${score.toFixed(1)}</span>
+                                    </div>` : ''
+                                ).join('')}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h6>Anahtar Konular:</h6>
+                                ${analysis.key_topics.map(topic => 
+                                    `<span class="topic-tag">${topic}</span>`
+                                ).join(' ')}
+                            </div>
+                        </div>
+                        
+                        ${analysis.action_items.length > 0 ? `
+                            <div class="mt-3">
+                                <h6>Aksiyon Maddeleri:</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${analysis.action_items.map(item => 
+                                        `<li class="list-group-item">${item}</li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showAnalysisHelp() {
+            new bootstrap.Modal(document.getElementById('analysisHelpModal')).show();
+        }
+    </script>
+</body>
+</html>

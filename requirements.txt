@@ -1,16 +1,49 @@
+# DeepSearch MVP - Enterprise Production Requirements
+# Core Framework
+Flask==2.3.2
+Flask-Session==0.5.0
+waitress==3.0.2
+python-dotenv==1.0.0
+paste==3.5.0
+
+# Document Processing
 pdfplumber==0.8.0
 python-docx==0.8.11
 python-pptx==0.6.21
 openpyxl==3.1.5
 pytesseract==0.3.13
 Pillow==11.3.0
-tqdm==4.65.0
 chardet==5.2.0
-tokenizers==0.22.1
-transformers
+
+# Machine Learning & Search
 sentence-transformers
+transformers
+tokenizers==0.22.1
 faiss-cpu==1.11.0
 langchain==0.1.0
+
+# Data Analysis & Visualization
 pandas==2.2.2
-Flask==2.3.2
-waitress==2.2.1
+matplotlib==3.10.6
+seaborn==0.13.2
+reportlab==4.0.4
+
+# Security & Enterprise Features
+bleach==6.2.0
+PyJWT==2.8.0
+pyotp==2.9.0
+qrcode==7.4.2
+cryptography==41.0.7
+bcrypt==4.1.2
+
+# Performance & Monitoring
+psutil==5.9.6
+memory-profiler==0.61.0
+tqdm==4.65.0
+
+# Optional: Production Enhancements
+# gunicorn>=20.1.0      # Linux/macOS production server
+# redis>=4.0.0          # Session storage & caching
+# celery>=5.0.0         # Background task processing
+# prometheus_client     # Metrics collection
+# sentry-sdk            # Error tracking

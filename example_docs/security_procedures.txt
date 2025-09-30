@@ -1,0 +1,24 @@
+Güvenlik Prosedürleri ve Protokolları
+
+1. Genel Güvenlik Kuralları
+   - Tüm personel güvenlik kartını görünür yerde taşımalıdır
+   - Ziyaretçiler escort olmadan hareket edemez
+   - Acil durum çıkışları her zaman açık tutulmalıdır
+
+2. Bilgi Güvenliği
+   - Şifreler en az 12 karakter olmalıdır
+   - İki faktörlü kimlik doğrulama zorunludur
+   - Hassas veriler şifrelenmiş olarak saklanmalıdır
+   - Düzenli yedekleme yapılması gereklidir
+
+3. Fiziksel Güvenlik
+   - Giriş kapıları kartlı geçiş sistemi ile kontrol edilir
+   - Güvenlik kameraları 24/7 aktif tutulur
+   - Alarm sistemi çalışma saatleri dışında devreye girer
+
+4. Acil Durum Protokolü
+   - Yangın alarmı durumunda en yakın çıkışa yönelin
+   - Güvenlik görevlisine derhal haber verin
+   - Tahliye noktasında toplanın ve yoklama bekleyin
+
+Bu prosedürler tüm çalışanlar tarafından bilinmeli ve uygulanmalıdır.

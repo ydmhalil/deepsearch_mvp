@@ -1,0 +1,33 @@
+Yazılım Geliştirme Rehberi
+
+1. Proje Başlangıcı
+   - Gereksinim analizi yapın
+   - Teknoloji stack'i belirleyin
+   - Git repository oluşturun
+   - Proje yapısını planlayın
+
+2. Kodlama Standartları
+   - PEP 8 (Python) kurallarını izleyin
+   - Anlamlı değişken isimleri kullanın
+   - Fonksiyonlar tek sorumluluk prensibi ile yazılsın
+   - Kod yorumları İngilizce olsun
+
+3. Versiyon Kontrolü
+   - Her commit anlamlı mesaj içermeli
+   - Feature branch'lar kullanın
+   - Pull request sürecini takip edin
+   - Code review zorunludur
+
+4. Test Süreçleri
+   - Unit test yazın
+   - Integration test yapın
+   - Manual test senaryoları hazırlayın
+   - Test coverage %80'in üzerinde olsun
+
+5. Deployment
+   - Staging ortamında test edin
+   - CI/CD pipeline kullanın
+   - Production deployment için checklist kullanın
+   - Rollback planı hazırlayın
+
+Bu rehber tüm development team tarafından uygulanmalıdır.

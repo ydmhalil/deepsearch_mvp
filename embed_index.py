@@ -2,9 +2,15 @@ import argparse
 import json
 import os
 import pickle
+import logging
+from typing import List, Dict, Any
 
 import numpy as np
 from tqdm import tqdm
+from faiss_optimizer import faiss_optimizer
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 
 def _import_faiss():
@@ -73,21 +79,54 @@ def load_index(index_path: str, meta_path: str):
 
 
 def search(index_path: str, meta_path: str, query: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', top_k: int = 5):
-    SentenceTransformer = _import_sentence_transformer()
-    model = SentenceTransformer(model_name)
-    q_emb = model.encode([query], convert_to_numpy=True).astype('float32')
-    faiss = _import_faiss()
-    faiss.normalize_L2(q_emb)
+    """Search using optimized FAISS implementation"""
+    try:
+        # Use optimized search if available
+        results = faiss_optimizer.search_optimized(query, topk=top_k)
+        
+        # Convert to legacy format for compatibility
+        legacy_results = []
+        for result in results:
+            legacy_results.append({
+                'score': result['similarity'],
+                'file_path': result['file_path'],
+                'meta': result['metadata']
+            })
+        
+        return legacy_results
+        
+    except Exception as e:
+        logging.warning(f"Optimized search failed, falling back to standard: {e}")
+        
+        # Fallback to original implementation
+        SentenceTransformer = _import_sentence_transformer()
+        model = SentenceTransformer(model_name)
+        q_emb = model.encode([query], convert_to_numpy=True).astype('float32')
+        faiss = _import_faiss()
+        faiss.normalize_L2(q_emb)
 
-    index, metas = load_index(index_path, meta_path)
-    D, I = index.search(q_emb, top_k)
-    results = []
-    for score, idx in zip(D[0], I[0]):
-        if idx < 0 or idx >= len(metas):
-            continue
-        m = metas[idx]
-        results.append({'score': float(score), 'file_path': m.get('file_path'), 'meta': m.get('meta')})
-    return results
+        index, metas = load_index(index_path, meta_path)
+        D, I = index.search(q_emb, top_k)
+        results = []
+        for score, idx in zip(D[0], I[0]):
+            if idx < 0 or idx >= len(metas):
+                continue
+            m = metas[idx]
+            results.append({'score': float(score), 'file_path': m.get('file_path'), 'meta': m.get('meta')})
+        return results
+
+def search_batch(queries: List[str], index_path: str = './data/faiss.index', 
+                meta_path: str = './data/meta.pkl', top_k: int = 5) -> List[List[Dict]]:
+    """Batch search for multiple queries with optimization"""
+    try:
+        return faiss_optimizer.batch_search(queries, topk=top_k)
+    except Exception as e:
+        logging.error(f"Batch search failed: {e}")
+        return [[] for _ in queries]
+
+def get_search_stats() -> Dict[str, Any]:
+    """Get search performance statistics"""
+    return faiss_optimizer.get_performance_stats()
 
 
 if __name__ == '__main__':

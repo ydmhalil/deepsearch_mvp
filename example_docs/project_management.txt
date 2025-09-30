@@ -1,0 +1,39 @@
+PROJE YÖNETİMİ METODOLOJİSİ
+
+1. AGILE YAKLAŞIMI
+   - Scrum framework kullanılır
+   - Sprint süreleri 2 hafta olarak belirlenir
+   - Daily standup toplantıları yapılır
+   - Sprint planning ve retrospektif toplantıları zorunludur
+
+2. PROJE PLANLAMA
+   - User story'ler detaylı yazılır
+   - Story point estimation yapılır
+   - Sprint backlog oluşturulur
+   - Burndown chart takip edilir
+
+3. TAKIM ROLLERI
+   - Product Owner gereksinimlerden sorumludur
+   - Scrum Master süreç yönetimini yapar
+   - Development team kod geliştirme yapar
+   - QA engineer test süreçlerini yürütür
+
+4. ARAÇLAR VE SÜREÇLER
+   - Jira ile proje takibi yapılır
+   - Confluence dokümantasyon için kullanılır
+   - Git ile version control sağlanır
+   - Jenkins ile CI/CD pipeline kurulur
+
+5. KALİTE KONTROL
+   - Definition of Done tanımlanır
+   - Code review süreci uygulanır
+   - Automated testing yapılır
+   - Manual test senaryoları hazırlanır
+
+6. RİSK YÖNETİMİ
+   - Risk register tutulur
+   - Risk impact analizi yapılır
+   - Mitigation planları hazırlanır
+   - Düzenli risk review toplantıları yapılır
+
+Bu metodoloji tüm projeler için standart olarak uygulanır.

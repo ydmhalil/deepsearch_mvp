@@ -29,6 +29,7 @@ def init_database():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT DEFAULT 'user',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -46,6 +47,7 @@ def init_database():
             results_count INTEGER DEFAULT 0,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             response_time REAL,
+            filters TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
@@ -57,15 +59,19 @@ def init_database():
             filename TEXT NOT NULL,
             file_path TEXT NOT NULL,
             file_size INTEGER,
+            file_type TEXT,
             upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
             uploaded_by INTEGER,
+            user_id INTEGER,
             indexed_date DATETIME,
             is_indexed BOOLEAN DEFAULT 0,
+            is_processed BOOLEAN DEFAULT 0,
             file_hash TEXT,
             chunks_file TEXT,
             index_file TEXT,
             meta_file TEXT,
-            FOREIGN KEY (uploaded_by) REFERENCES users (id)
+            FOREIGN KEY (uploaded_by) REFERENCES users (id),
+            FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
     
@@ -76,6 +82,99 @@ def init_database():
             value TEXT,
             description TEXT,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create saved_searches table for bookmarks
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saved_searches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            query TEXT NOT NULL,
+            filters TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_used DATETIME,
+            use_count INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Create security tables for enterprise features
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS security_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            user_id INTEGER,
+            details TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_token TEXT UNIQUE NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NOT NULL,
+            is_active BOOLEAN DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rate_limits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            request_count INTEGER DEFAULT 1,
+            window_start DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_request DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            ip_address TEXT NOT NULL,
+            success BOOLEAN NOT NULL,
+            attempt_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            user_agent TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            document_id INTEGER,
+            title TEXT NOT NULL,
+            url TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (document_id) REFERENCES documents (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS document_insights (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            business_category TEXT,
+            sentiment_score REAL,
+            key_topics TEXT,
+            summary TEXT,
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (document_id) REFERENCES documents (id)
         )
     ''')
     
@@ -110,7 +209,9 @@ def init_database():
     conn.commit()
     
     print("✅ Database tables created successfully!")
-    print("📊 Tables: users, search_logs, documents, settings")
+    print("📊 Tables: users, search_logs, documents, settings, saved_searches")
+    print("🔒 Security tables: security_events, user_sessions, rate_limits, login_attempts")
+    print("📚 Additional tables: bookmarks, document_insights")
     print("🔑 Default admin user created")
     
     # Display table info

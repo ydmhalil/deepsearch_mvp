@@ -57,6 +57,35 @@
             font-size: 1.2rem;
             margin-bottom: 2rem;
         }
+        .search-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .suggestion-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .suggestion-item:hover {
+            background-color: #f8f9fa;
+        }
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .form-check-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -76,6 +105,23 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('upload_page') }}">Dosya Yükleme</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('kobi_dashboard') }}">
+                            <i class="fas fa-chart-line me-1"></i>KOBİ Dashboard
+                        </a>
+                    </li>
+                    {% if current_user and current_user.role == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('security_dashboard') }}">
+                            <i class="fas fa-shield-alt me-1"></i>Güvenlik Panel
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('insights_dashboard') }}">
+                            <i class="fas fa-brain me-1"></i>İçerik Insights
+                        </a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
@@ -129,19 +175,116 @@
                     <div class="logo">🔍 DeepSearch</div>
                     <div class="subtitle">Akıllı Doküman Arama Sistemi</div>
                     
-                    <form action="{{ url_for('do_search') }}" method="post">
+                    <form action="{{ url_for('do_search') }}" method="post" id="searchForm">
                         <div class="row g-3 align-items-center justify-content-center">
                             <div class="col-md-8">
                                 <input type="text" 
                                        name="query" 
+                                       id="searchQuery"
                                        class="form-control search-input" 
                                        placeholder="Aramak istediğiniz konuyu yazın..."
+                                       autocomplete="off"
                                        required>
+                                <!-- Search suggestions dropdown -->
+                                <div id="searchSuggestions" class="search-suggestions" style="display: none;"></div>
                             </div>
                             <div class="col-md-3">
                                 <button type="submit" class="btn btn-primary search-btn w-100">
                                     <i class="fas fa-search me-2"></i>Ara
                                 </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Additional Controls -->
+                        <div class="row mt-3">
+                            <div class="col-md-12 d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                    <i class="fas fa-refresh me-1"></i> Temizle
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="saveCurrentSearch()">
+                                    <i class="fas fa-bookmark me-1"></i> Aramayı Kaydet
+                                </button>
+                                <a href="{{ url_for('search_history_page') }}" class="btn btn-outline-dark">
+                                    <i class="fas fa-history me-1"></i> Arama Geçmişi
+                                </a>
+                            </div>
+                        </div>
+                        <!-- Advanced Filters -->
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                        data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+                                    <i class="fas fa-filter me-2"></i>Gelişmiş Filtreler
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="collapse mt-3" id="advancedFilters">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <!-- File Type Filter -->
+                                        <div class="col-md-4">
+                                            <label class="form-label">Dosya Türü</label>
+                                            <div class="form-check-group">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" name="file_types" value="pdf" id="type_pdf">
+                                                    <label class="form-check-label" for="type_pdf">PDF</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" name="file_types" value="docx" id="type_docx">
+                                                    <label class="form-check-label" for="type_docx">DOCX</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" name="file_types" value="xlsx" id="type_xlsx">
+                                                    <label class="form-check-label" for="type_xlsx">XLSX</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" name="file_types" value="pptx" id="type_pptx">
+                                                    <label class="form-check-label" for="type_pptx">PPTX</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" name="file_types" value="txt" id="type_txt">
+                                                    <label class="form-check-label" for="type_txt">TXT</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Date Range Filter -->
+                                        <div class="col-md-4">
+                                            <label class="form-label">Tarih Aralığı</label>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <input type="date" class="form-control form-control-sm" 
+                                                           name="date_from" placeholder="Başlangıç">
+                                                </div>
+                                                <div class="col-6">
+                                                    <input type="date" class="form-control form-control-sm" 
+                                                           name="date_to" placeholder="Bitiş">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Additional Filters -->
+                                        <div class="col-md-4">
+                                            <label class="form-label">Ek Filtreler</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="indexed_only" value="1" id="indexed_only">
+                                                <label class="form-check-label" for="indexed_only">
+                                                    Sadece indekslenmiş dosyalar
+                                                </label>
+                                            </div>
+                                            {% if current_user and current_user.role != 'admin' %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="user_files_only" value="1" id="user_files_only">
+                                                <label class="form-check-label" for="user_files_only">
+                                                    Sadece kendi dosyalarım
+                                                </label>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -189,5 +332,155 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://kit.fontawesome.com/your-kit-id.js"></script>
+    <script>
+        // Search suggestions functionality
+        let searchTimeout;
+        const searchQuery = document.getElementById('searchQuery');
+        const searchSuggestions = document.getElementById('searchSuggestions');
+
+        searchQuery.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    fetchSearchSuggestions(query);
+                }, 300);
+            } else {
+                searchSuggestions.style.display = 'none';
+            }
+        });
+
+        function fetchSearchSuggestions(query) {
+            fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySuggestions(data.suggestions || []);
+                })
+                .catch(error => {
+                    console.error('Search suggestions error:', error);
+                });
+        }
+
+        function displaySuggestions(suggestions) {
+            if (suggestions.length === 0) {
+                searchSuggestions.style.display = 'none';
+                return;
+            }
+
+            searchSuggestions.innerHTML = suggestions.map(suggestion => 
+                `<div class="suggestion-item" onclick="selectSuggestion('${suggestion}')">${suggestion}</div>`
+            ).join('');
+            
+            searchSuggestions.style.display = 'block';
+        }
+
+        function selectSuggestion(suggestion) {
+            searchQuery.value = suggestion;
+            searchSuggestions.style.display = 'none';
+            document.getElementById('searchForm').submit();
+        }
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!searchQuery.contains(event.target) && !searchSuggestions.contains(event.target)) {
+                searchSuggestions.style.display = 'none';
+            }
+        });
+
+        // Popular searches functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchPopularSearches();
+        });
+
+        function fetchPopularSearches() {
+            fetch('/popular_searches')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.popular && data.popular.length > 0) {
+                        displayPopularSearches(data.popular);
+                    }
+                })
+                .catch(error => {
+                    console.error('Popular searches error:', error);
+                });
+        }
+
+        function displayPopularSearches(popular) {
+            const container = document.querySelector('.search-container');
+            const popularDiv = document.createElement('div');
+            popularDiv.className = 'mt-4';
+            popularDiv.innerHTML = `
+                <h6 class="text-muted mb-3">🔥 Popüler Aramalar:</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    ${popular.map(item => 
+                        `<button type="button" class="btn btn-outline-primary btn-sm" 
+                                onclick="selectSuggestion('${item.query}')">${item.query}</button>`
+                    ).join('')}
+                </div>
+            `;
+            container.appendChild(popularDiv);
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchQuery').value = '';
+            document.getElementById('date_from').value = '';
+            document.getElementById('date_to').value = '';
+            document.getElementById('file_types').value = '';
+            document.getElementById('min_size').value = '';
+            document.getElementById('max_size').value = '';
+            document.getElementById('sort_by').value = 'relevance';
+            document.getElementById('sort_order').value = 'desc';
+        }
+
+        // Save current search
+        function saveCurrentSearch() {
+            const query = document.getElementById('searchQuery').value.trim();
+            if (!query) {
+                alert('Önce bir arama yapın');
+                return;
+            }
+
+            const name = prompt('Bu aramaya bir isim verin:');
+            if (!name || !name.trim()) {
+                return;
+            }
+
+            const filters = {
+                date_from: document.getElementById('date_from').value,
+                date_to: document.getElementById('date_to').value,
+                file_types: document.getElementById('file_types').value,
+                min_size: document.getElementById('min_size').value,
+                max_size: document.getElementById('max_size').value,
+                sort_by: document.getElementById('sort_by').value,
+                sort_order: document.getElementById('sort_order').value
+            };
+
+            fetch('/save_search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name.trim(),
+                    query: query,
+                    filters: JSON.stringify(filters)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Arama başarıyla kaydedildi!');
+                } else {
+                    alert('Hata: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Save search error:', error);
+                alert('Kaydetme sırasında hata oluştu');
+            });
+        }
+    </script>
 </body>
 </html>

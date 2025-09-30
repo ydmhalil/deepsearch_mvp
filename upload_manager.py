@@ -9,6 +9,13 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from init_database import get_db_connection
 import subprocess
+
+# Import document insights for auto-analysis
+try:
+    from document_insights import insights_engine
+    INSIGHTS_AVAILABLE = True
+except ImportError:
+    INSIGHTS_AVAILABLE = False
 import json
 
 class FileUploadManager:
@@ -145,6 +152,30 @@ class FileUploadManager:
             document_id = cursor.lastrowid
             conn.commit()
             conn.close()
+            
+            # Auto-analyze document content if insights engine available
+            if INSIGHTS_AVAILABLE:
+                try:
+                    # Get file extension
+                    file_ext = os.path.splitext(filename)[1].lower()
+                    
+                    # Extract text content for analysis
+                    if file_ext == '.txt':
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                    else:
+                        # For other file types, extract text using utils
+                        from utils import extract_text
+                        content = extract_text(filepath)
+                    
+                    # Perform document analysis
+                    if content and len(content.strip()) > 50:  # Only analyze if substantial content
+                        analysis = insights_engine.analyze_document_content(filepath, content)
+                        insights_engine.save_analysis_to_db(analysis)
+                        print(f"✨ Document analysis completed for: {filename}")
+                        
+                except Exception as e:
+                    print(f"⚠️ Document analysis failed for {filename}: {str(e)}")
             
             return {
                 'success': True, 

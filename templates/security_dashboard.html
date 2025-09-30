@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Güvenlik Kontrol Paneli - DeepSearch</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .security-stat-card {
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .security-stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .security-high { border-left-color: #dc3545; }
+        .security-medium { border-left-color: #ffc107; }
+        .security-low { border-left-color: #198754; }
+        .security-info { border-left-color: #0dcaf0; }
+        
+        .threat-level {
+            font-size: 0.85em;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .threat-high { background-color: #dc3545; color: white; }
+        .threat-medium { background-color: #ffc107; color: #000; }
+        .threat-low { background-color: #198754; color: white; }
+        
+        .security-event {
+            border-left: 3px solid #dee2e6;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+        }
+        .security-event.high { border-left-color: #dc3545; }
+        .security-event.medium { border-left-color: #ffc107; }
+        .security-event.low { border-left-color: #198754; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-shield-alt me-2"></i>DeepSearch - Güvenlik
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>Ana Sayfa
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a class="nav-link" href="{{ url_for('kobi_dashboard') }}">
+                    <i class="fas fa-chart-line me-1"></i>KOBİ Dashboard
+                </a>
+                {% endif %}
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Çıkış
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-shield-alt me-2"></i>Güvenlik Kontrol Paneli</h2>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="loadSecurityData(1)">Son 24 Saat</button>
+                        <button type="button" class="btn btn-primary" onclick="loadSecurityData(7)">Son 7 Gün</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="loadSecurityData(30)">Son 30 Gün</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Overview Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card security-stat-card security-high h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                        <h3 class="card-title text-danger" id="high-threats">{{ security_summary.high_severity_events|length }}</h3>
+                        <p class="card-text">Yüksek Risk Olayları</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card security-stat-card security-medium h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+                        <h3 class="card-title text-warning" id="medium-threats">{{ security_summary.medium_severity_events|length }}</h3>
+                        <p class="card-text">Orta Risk Olayları</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card security-stat-card security-low h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h3 class="card-title text-success" id="low-threats">{{ security_summary.low_severity_events|length }}</h3>
+                        <p class="card-text">Düşük Risk Olayları</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card security-stat-card security-info h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-3x text-info mb-3"></i>
+                        <h3 class="card-title text-info" id="active-sessions">{{ security_summary.active_sessions }}</h3>
+                        <p class="card-text">Aktif Oturumlar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Security Events Timeline -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-clock me-2"></i>Güvenlik Olayları Zaman Çizelgesi</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="securityChart" height="100"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Security Events -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list me-2"></i>Son Güvenlik Olayları</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="security-events-list">
+                            {% for event in security_summary.recent_events[:10] %}
+                            <div class="security-event {{ event.severity }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>{{ event.event_type }}</strong>
+                                        <span class="threat-level threat-{{ event.severity }}">{{ event.severity.upper() }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ event.timestamp }}</small>
+                                        {% if event.user_id %}
+                                        <small class="text-muted">- Kullanıcı ID: {{ event.user_id }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        {% if event.ip_address %}
+                                        <small class="text-muted d-block">IP: {{ event.ip_address }}</small>
+                                        {% endif %}
+                                        {% if event.user_agent %}
+                                        <small class="text-muted d-block">{{ event.user_agent[:50] }}...</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if event.details %}
+                                <div class="mt-2">
+                                    <small>{{ event.details }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Statistics -->
+            <div class="col-md-4">
+                <!-- Threat Analysis -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie me-2"></i>Tehdit Analizi</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="threatChart" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rate Limiting Status -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-tachometer-alt me-2"></i>Rate Limiting Durumu</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Engellenen IP'ler</label>
+                            <div class="progress">
+                                <div class="progress-bar bg-danger" role="progressbar" 
+                                     style="width: {{ (security_summary.blocked_ips|length / 100 * 100)|round|int }}%" 
+                                     aria-valuenow="{{ security_summary.blocked_ips|length }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ security_summary.blocked_ips|length }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Başarısız Giriş Denemeleri</label>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" role="progressbar" 
+                                     style="width: {{ (security_summary.failed_login_attempts / 50 * 100)|round|int }}%" 
+                                     aria-valuenow="{{ security_summary.failed_login_attempts }}" 
+                                     aria-valuemin="0" aria-valuemax="50">
+                                    {{ security_summary.failed_login_attempts }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="list-group mt-3">
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>Aktif Rate Limitler</span>
+                                <span class="badge bg-primary rounded-pill">{{ security_summary.active_rate_limits }}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>Toplam Güvenlik Olayı</span>
+                                <span class="badge bg-info rounded-pill">{{ security_summary.total_events }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Blocked IPs -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-ban me-2"></i>En Çok Engellenen IP'ler</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for ip in security_summary.top_blocked_ips[:5] %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <code>{{ ip.ip_address }}</code>
+                            <span class="badge bg-danger">{{ ip.attempts }} deneme</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let securityChart, threatChart;
+
+        // Initialize charts
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            loadSecurityData(7); // Load last 7 days by default
+        });
+
+        function initializeCharts() {
+            // Security Events Timeline Chart
+            const securityCtx = document.getElementById('securityChart').getContext('2d');
+            securityChart = new Chart(securityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Yüksek Risk',
+                            data: [],
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Orta Risk',
+                            data: [],
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Düşük Risk',
+                            data: [],
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Threat Distribution Chart
+            const threatCtx = document.getElementById('threatChart').getContext('2d');
+            threatChart = new Chart(threatCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Yüksek Risk', 'Orta Risk', 'Düşük Risk'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#dc3545', '#ffc107', '#198754']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadSecurityData(days) {
+            fetch(`/security/events?days=${days}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateSecurityStats(data);
+                    updateCharts(data);
+                    updateEventsList(data.recent_events);
+                })
+                .catch(error => console.error('Error loading security data:', error));
+        }
+
+        function updateSecurityStats(data) {
+            document.getElementById('high-threats').textContent = data.high_severity_events?.length || 0;
+            document.getElementById('medium-threats').textContent = data.medium_severity_events?.length || 0;
+            document.getElementById('low-threats').textContent = data.low_severity_events?.length || 0;
+            document.getElementById('active-sessions').textContent = data.active_sessions || 0;
+        }
+
+        function updateCharts(data) {
+            // Update timeline chart
+            if (data.timeline) {
+                securityChart.data.labels = data.timeline.labels;
+                securityChart.data.datasets[0].data = data.timeline.high_severity;
+                securityChart.data.datasets[1].data = data.timeline.medium_severity;
+                securityChart.data.datasets[2].data = data.timeline.low_severity;
+                securityChart.update();
+            }
+
+            // Update threat distribution chart
+            const highCount = data.high_severity_events?.length || 0;
+            const mediumCount = data.medium_severity_events?.length || 0;
+            const lowCount = data.low_severity_events?.length || 0;
+            
+            threatChart.data.datasets[0].data = [highCount, mediumCount, lowCount];
+            threatChart.update();
+        }
+
+        function updateEventsList(events) {
+            const container = document.getElementById('security-events-list');
+            
+            if (!events || events.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted">Güvenlik olayı bulunamadı</div>';
+                return;
+            }
+
+            container.innerHTML = events.slice(0, 10).map(event => `
+                <div class="security-event ${event.severity}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${event.event_type}</strong>
+                            <span class="threat-level threat-${event.severity}">${event.severity.toUpperCase()}</span>
+                            <br>
+                            <small class="text-muted">${new Date(event.timestamp).toLocaleString('tr-TR')}</small>
+                            ${event.user_id ? `<small class="text-muted"> - Kullanıcı ID: ${event.user_id}</small>` : ''}
+                        </div>
+                        <div class="text-end">
+                            ${event.ip_address ? `<small class="text-muted d-block">IP: ${event.ip_address}</small>` : ''}
+                            ${event.user_agent ? `<small class="text-muted d-block">${event.user_agent.substring(0, 50)}...</small>` : ''}
+                        </div>
+                    </div>
+                    ${event.details ? `<div class="mt-2"><small>${event.details}</small></div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadSecurityData(7);
+        }, 30000);
+    </script>
+</body>
+</html>

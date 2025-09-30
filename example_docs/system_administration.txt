@@ -1,0 +1,45 @@
+SİSTEM YÖNETİMİ VE ALTYAPI
+
+1. SUNUCU YÖNETİMİ
+   - Linux server administrasyon
+   - Windows Server 2019/2022 yönetimi
+   - VMware vSphere virtualization
+   - Docker container orchestration
+   - Kubernetes cluster management
+
+2. NETWORK ALTYAPISI
+   - Firewall konfigürasyonu
+   - VPN bağlantı ayarları
+   - DNS server yönetimi
+   - Load balancer konfigürasyonu
+   - Network monitoring ve troubleshooting
+
+3. VERİTABANI YÖNETİMİ
+   - MySQL/PostgreSQL administrasyon
+   - Database backup ve recovery
+   - Performance tuning ve optimization
+   - Replication ve clustering
+   - Security hardening
+
+4. BULUT SERVİSLERİ
+   - AWS EC2, S3, RDS yönetimi
+   - Azure Virtual Machines ve Storage
+   - Google Cloud Platform services
+   - Cloud cost optimization
+   - Multi-cloud strategy
+
+5. GÜVENLİK UYGULAMALARI
+   - Penetration testing
+   - Vulnerability assessment
+   - Security patch management
+   - Access control ve authentication
+   - Incident response procedures
+
+6. İZLEME VE ALARM
+   - System monitoring tools (Nagios, Zabbix)
+   - Log analysis ve SIEM
+   - Performance metrics dashboard
+   - Automated alerting systems
+   - Capacity planning
+
+Bu dokümantasyon sistem yöneticileri için hazırlanmıştır.
