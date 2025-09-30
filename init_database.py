@@ -61,6 +61,10 @@ def init_database():
             uploaded_by INTEGER,
             indexed_date DATETIME,
             is_indexed BOOLEAN DEFAULT 0,
+            file_hash TEXT,
+            chunks_file TEXT,
+            index_file TEXT,
+            meta_file TEXT,
             FOREIGN KEY (uploaded_by) REFERENCES users (id)
         )
     ''')

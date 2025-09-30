@@ -7,6 +7,7 @@ from urllib.parse import quote_plus, unquote_plus
 from markupsafe import escape
 from auth import login_required, admin_required, user_manager, get_current_user
 from init_database import init_database, get_db_connection
+from upload_manager import upload_manager
 from datetime import datetime
 
 
@@ -246,6 +247,79 @@ def admin_panel():
     users = user_manager.get_all_users(include_inactive=True)
     current_user = get_current_user()
     return render_template('admin.html', users=users, current_user=current_user)
+
+# File upload routes
+@app.route('/upload')
+@login_required
+def upload_page():
+    """File upload interface"""
+    current_user = get_current_user()
+    uploaded_files = upload_manager.get_uploaded_files(
+        user_id=current_user['id'] if current_user['role'] != 'admin' else None,
+        include_all=current_user['role'] == 'admin'
+    )
+    upload_stats = upload_manager.get_upload_stats()
+    return render_template('upload.html', 
+                         current_user=current_user, 
+                         uploaded_files=uploaded_files,
+                         upload_stats=upload_stats)
+
+@app.route('/upload_file', methods=['POST'])
+@login_required
+def upload_file():
+    """Handle file upload"""
+    if 'files' not in request.files:
+        return jsonify({'success': False, 'message': 'Dosya seçilmedi'})
+    
+    files = request.files.getlist('files')
+    results = []
+    
+    for file in files:
+        result = upload_manager.save_uploaded_file(file, session.get('user_id'))
+        results.append({
+            'filename': file.filename,
+            'result': result
+        })
+    
+    return jsonify({'success': True, 'results': results})
+
+@app.route('/delete_file/<int:document_id>', methods=['POST'])
+@login_required
+def delete_file(document_id):
+    """Delete uploaded file"""
+    current_user = get_current_user()
+    result = upload_manager.delete_file(
+        document_id, 
+        current_user['id'],
+        is_admin=current_user['role'] == 'admin'
+    )
+    
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
+    
+    return redirect(url_for('upload_page'))
+
+@app.route('/index_file/<int:document_id>', methods=['POST'])
+@login_required
+def index_file(document_id):
+    """Index uploaded file for search"""
+    result = upload_manager.process_file_for_indexing(document_id)
+    
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
+    
+    return redirect(url_for('upload_page'))
+
+@app.route('/upload_stats')
+@login_required
+def upload_stats_api():
+    """Get upload statistics (AJAX)"""
+    stats = upload_manager.get_upload_stats()
+    return jsonify(stats)
 
 if __name__ == '__main__':
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'

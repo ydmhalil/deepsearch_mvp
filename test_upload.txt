@@ -1,0 +1,21 @@
+DEEPSEARCH TEST DOSYASI
+
+Bu dosya DeepSearch file upload sistemini test etmek için oluşturulmuştur.
+
+İçerik:
+- Türkçe metin desteği
+- UTF-8 encoding
+- Test amaçlı sample content
+
+Anahtar kelimeler:
+- dosya yükleme
+- test sistemi  
+- arama motoru
+- embedding
+- vector search
+
+Bu dosya yüklendikten sonra indexlenebilir ve arama yapılabilir duruma gelecektir.
+
+Test tarihi: 30 Eylül 2025
+Sistem: DeepSearch MVP
+Versiyon: File Upload System Test
