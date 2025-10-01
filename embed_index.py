@@ -9,6 +9,9 @@ import numpy as np
 from tqdm import tqdm
 from faiss_optimizer import faiss_optimizer
 
+# Domain-specific embedding sistemi
+from domain_embeddings import TurkishDefenseEmbedding
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
@@ -29,12 +32,22 @@ def _import_sentence_transformer():
         raise ImportError("sentence-transformers is required for embeddings: " + str(e))
 
 
-def build_index(chunks_path: str, index_path: str, meta_path: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', batch_size: int = 64):
+def build_index(chunks_path: str, index_path: str, meta_path: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', batch_size: int = 64, use_domain_embedding: bool = True):
     os.makedirs(os.path.dirname(index_path) or '.', exist_ok=True)
     os.makedirs(os.path.dirname(meta_path) or '.', exist_ok=True)
 
-    SentenceTransformer = _import_sentence_transformer()
-    model = SentenceTransformer(model_name)
+    # Domain-specific embedding sistemi kullan
+    if use_domain_embedding:
+        logging.info("Using Turkish Defense Domain-Specific Embedding System")
+        embedding_system = TurkishDefenseEmbedding()
+        if not embedding_system.initialize():
+            logging.error("Failed to initialize domain embedding system, falling back to base model")
+            use_domain_embedding = False
+    
+    if not use_domain_embedding:
+        logging.info(f"Using base embedding model: {model_name}")
+        SentenceTransformer = _import_sentence_transformer()
+        model = SentenceTransformer(model_name)
 
     texts = []
     metas = []
@@ -51,9 +64,25 @@ def build_index(chunks_path: str, index_path: str, meta_path: str, model_name: s
     embeds = []
     for i in tqdm(range(0, len(texts), batch_size), desc='Embedding'):
         batch = texts[i:i + batch_size]
-        emb = model.encode(batch, show_progress_bar=False, convert_to_numpy=True)
+        
+        if use_domain_embedding:
+            # Domain-specific embedding kullan
+            emb = embedding_system.encode_documents(batch)
+        else:
+            # Base model kullan
+            emb = model.encode(batch, show_progress_bar=False, convert_to_numpy=True)
+        
         embeds.append(emb)
+    
     embeddings = np.vstack(embeds).astype('float32')
+    
+    # Domain embedding sistemi bilgisini metadata'ya ekle
+    enhanced_metas = []
+    for meta in metas:
+        enhanced_meta = meta.copy()
+        enhanced_meta['domain_embedding'] = use_domain_embedding
+        enhanced_meta['embedding_model'] = model_name if not use_domain_embedding else "TurkishDefenseEmbedding"
+        enhanced_metas.append(enhanced_meta)
 
     # Normalize to use inner product as cosine similarity
     faiss = _import_faiss()
@@ -64,7 +93,7 @@ def build_index(chunks_path: str, index_path: str, meta_path: str, model_name: s
 
     faiss.write_index(index, index_path)
     with open(meta_path, 'wb') as mf:
-        pickle.dump(metas, mf)
+        pickle.dump(enhanced_metas, mf)
 
     print('Index saved to', index_path)
     print('Metadata saved to', meta_path)
@@ -78,8 +107,8 @@ def load_index(index_path: str, meta_path: str):
     return index, metas
 
 
-def search(index_path: str, meta_path: str, query: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', top_k: int = 5):
-    """Search using optimized FAISS implementation"""
+def search(index_path: str, meta_path: str, query: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', top_k: int = 5, use_domain_embedding: bool = True):
+    """Search using optimized FAISS implementation with domain-specific embedding"""
     try:
         # Use optimized search if available
         results = faiss_optimizer.search_optimized(query, topk=top_k)
@@ -96,14 +125,34 @@ def search(index_path: str, meta_path: str, query: str, model_name: str = 'sente
         return legacy_results
         
     except Exception as e:
-        logging.warning(f"Optimized search failed, falling back to standard: {e}")
+        logging.warning(f"Optimized search failed, falling back to domain-specific search: {e}")
         
-        # Fallback to original implementation
-        SentenceTransformer = _import_sentence_transformer()
-        model = SentenceTransformer(model_name)
-        q_emb = model.encode([query], convert_to_numpy=True).astype('float32')
-        faiss = _import_faiss()
-        faiss.normalize_L2(q_emb)
+        # Domain-specific search implementation
+        if use_domain_embedding:
+            logging.info("Using Turkish Defense Domain-Specific Search")
+            embedding_system = TurkishDefenseEmbedding()
+            if embedding_system.initialize():
+                # Analyze query first
+                query_analysis = embedding_system.analyze_query_complexity(query)
+                logging.info(f"Query analysis: Domain relevance: {query_analysis['domain_relevance']:.2f}")
+                
+                # Enhanced query encoding
+                q_emb = embedding_system.encode_query(query, enhance_domain_terms=True)
+                q_emb = q_emb.astype('float32').reshape(1, -1)
+                
+                faiss = _import_faiss()
+                faiss.normalize_L2(q_emb)
+            else:
+                logging.warning("Domain embedding failed, using base model")
+                use_domain_embedding = False
+        
+        if not use_domain_embedding:
+            # Fallback to original implementation
+            SentenceTransformer = _import_sentence_transformer()
+            model = SentenceTransformer(model_name)
+            q_emb = model.encode([query], convert_to_numpy=True).astype('float32')
+            faiss = _import_faiss()
+            faiss.normalize_L2(q_emb)
 
         index, metas = load_index(index_path, meta_path)
         D, I = index.search(q_emb, top_k)
@@ -138,6 +187,7 @@ if __name__ == '__main__':
     p_build.add_argument('--index', required=True, help='Output FAISS index path')
     p_build.add_argument('--meta', required=True, help='Output metadata (pickle) path')
     p_build.add_argument('--model', default='sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
+    p_build.add_argument('--domain-embedding', action='store_true', help='Use Turkish Defense Domain-Specific Embedding')
 
     p_search = sub.add_parser('search')
     p_search.add_argument('--index', required=True)
@@ -145,12 +195,15 @@ if __name__ == '__main__':
     p_search.add_argument('--query', required=True)
     p_search.add_argument('--model', default='sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
     p_search.add_argument('--topk', type=int, default=5)
+    p_search.add_argument('--domain-embedding', action='store_true', help='Use Turkish Defense Domain-Specific Search')
 
     args = parser.parse_args()
     if args.cmd == 'build':
-        build_index(args.chunks, args.index, args.meta, model_name=args.model)
+        build_index(args.chunks, args.index, args.meta, model_name=args.model, 
+                   use_domain_embedding=getattr(args, 'domain_embedding', False))
     elif args.cmd == 'search':
-        res = search(args.index, args.meta, args.query, model_name=args.model, top_k=args.topk)
+        res = search(args.index, args.meta, args.query, model_name=args.model, top_k=args.topk,
+                    use_domain_embedding=getattr(args, 'domain_embedding', False))
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:
         parser.print_help()

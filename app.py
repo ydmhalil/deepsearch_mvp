@@ -4,6 +4,9 @@ import os
 import time
 from embed_index import search
 from reporter import generate_report
+from advanced_rag import AdvancedRAGSystem, RAGConfig
+from conversation_manager import conversation_manager
+from advanced_analytics import AdvancedAnalytics, SearchAnalytics
 from urllib.parse import quote_plus, unquote_plus
 from markupsafe import escape
 from auth import login_required, admin_required, user_manager, get_current_user
@@ -17,6 +20,7 @@ from security_manager import security_manager
 from database_optimizer import db_optimizer, get_optimized_user_documents, get_dashboard_analytics_optimized
 from faiss_optimizer import faiss_optimizer
 from resource_manager import memory_manager, resource_manager, optimize_system_performance, get_system_health
+from advanced_analytics import AdvancedAnalytics, SearchAnalytics
 from datetime import datetime
 
 
@@ -39,11 +43,60 @@ app.config['SESSION_USE_SIGNER'] = True
 # Initialize session
 Session(app)
 
+# Initialize RAG System - Global variable
+rag_system = None
+
+# Initialize Analytics System - Global variable
+analytics_system = None
+
+def initialize_rag_system():
+    """Initialize RAG system separately"""
+    global rag_system
+    try:
+        rag_config = RAGConfig()
+        rag_system = AdvancedRAGSystem(rag_config)
+        
+        index_path = "./data/faiss.index"
+        meta_path = "./data/meta.pkl"
+        
+        if os.path.exists(index_path) and os.path.exists(meta_path):
+            if rag_system.initialize(index_path, meta_path):
+                print("✅ Advanced RAG System initialized successfully")
+                return True
+            else:
+                print("⚠️ RAG System initialization failed")
+                rag_system = None
+                return False
+        else:
+            print("⚠️ FAISS index files not found. RAG features will be limited.")
+            rag_system = None
+            return False
+            
+    except Exception as e:
+        print(f"⚠️ RAG System initialization error: {e}")
+        rag_system = None
+        return False
+
+def initialize_analytics_system():
+    """Initialize Analytics system"""
+    global analytics_system
+    try:
+        analytics_system = AdvancedAnalytics()
+        print("✅ Advanced Analytics System initialized successfully")
+        return True
+    except Exception as e:
+        print(f"⚠️ Analytics System initialization error: {e}")
+        analytics_system = None
+        return False
+
 # Ensure database is initialized
 init_database()
 
 # Initialize security tables
 security_manager.initialize_security_tables()
+
+# Initialize Analytics System
+initialize_analytics_system()
 
 # Security middleware
 @app.before_request
@@ -265,6 +318,10 @@ def do_search():
     if not q:
         return redirect(url_for('index'))
     
+    # Start timing for analytics
+    search_start_time = time.time()
+    current_user = get_current_user()
+    
     # Security validation for search query
     query_validation = security_manager.validate_input(q, 'search_query')
     if not query_validation['is_valid']:
@@ -397,6 +454,48 @@ def do_search():
             'download_url': '/file?path=' + quote_plus(fp)
         })
     
+    # Analytics logging
+    search_end_time = time.time()
+    response_time = search_end_time - search_start_time
+    
+    if analytics_system and current_user:
+        try:
+            # Determine domain relevance and query category
+            domain_relevance = 0.0
+            query_category = 'general'
+            
+            # Simple category detection
+            query_lower = q.lower()
+            if any(term in query_lower for term in ['güvenlik', 'security', 'tehdit', 'risk']):
+                query_category = 'security'
+                domain_relevance = 0.8
+            elif any(term in query_lower for term in ['sistem', 'teknik', 'teknoloji']):
+                query_category = 'technical'
+                domain_relevance = 0.6
+            elif any(term in query_lower for term in ['iha', 'radar', 'f-16', 'silah']):
+                query_category = 'defense'
+                domain_relevance = 0.9
+            
+            # Create analytics entry
+            search_analytics = SearchAnalytics(
+                query=q,
+                user_id=str(current_user.get('id', 'anonymous')),
+                timestamp=datetime.now(),
+                results_count=len(results),
+                response_time=response_time,
+                domain_relevance=domain_relevance,
+                embedding_type='standard',  # Will be enhanced later
+                clicked_results=[],  # Will be tracked via client-side
+                session_id=session.get('session_token', ''),
+                query_category=query_category
+            )
+            
+            analytics_system.log_search(search_analytics)
+            analytics_system.update_user_behavior(str(current_user.get('id')))
+            
+        except Exception as analytics_error:
+            print(f"Analytics logging failed: {analytics_error}")
+    
     current_user = get_current_user()
     response = make_response(render_template('results.html', 
                          query=q, 
@@ -420,6 +519,224 @@ def make_report():
     out = './data/report_ui.txt'
     generate_report('./data/pdf_test.index','./data/pdf_test.pkl', q, out)
     return send_file(out, as_attachment=True)
+
+
+# RAG System Endpoints
+@app.route('/rag/query', methods=['POST'])
+@login_required
+def rag_query():
+    """RAG sistem sorgusu - AI-powered document Q&A"""
+    try:
+        data = request.get_json()
+        question = data.get('question', '')
+        query_type = data.get('type', 'qa')  # qa, summary
+        session_id = data.get('session_id', '')
+        
+        if not question:
+            return jsonify({'error': 'Question is required', 'success': False}), 400
+        
+        if not rag_system:
+            return jsonify({'error': 'RAG system not initialized', 'success': False}), 500
+        
+        user_id = session.get('user_id', 'anonymous')
+        
+        # Session yoksa oluştur
+        if not session_id:
+            session_id = conversation_manager.create_session(
+                user_id=user_id,
+                title=f"Q&A: {question[:30]}..."
+            )
+        
+        # User mesajını kaydet
+        conversation_manager.add_message(
+            session_id=session_id,
+            user_id=user_id,
+            message_type='user',
+            content=question,
+            metadata={'query_type': query_type}
+        )
+        
+        # RAG sorgusu çalıştır
+        result = rag_system.query_documents(question, query_type)
+        
+        if result.get('success'):
+            # Assistant cevabını kaydet
+            conversation_manager.add_message(
+                session_id=session_id,
+                user_id=user_id,
+                message_type='assistant',
+                content=result['answer'],
+                metadata={
+                    'sources': result.get('sources', []),
+                    'query_type': query_type,
+                    'source_count': len(result.get('sources', []))
+                }
+            )
+            
+            # Context güncelle
+            conversation_manager.update_session_context(session_id, {
+                'last_topic': query_type,
+                'last_query': question,
+                'total_queries': conversation_manager.get_session(session_id).message_count // 2
+            })
+            
+            # Follow-up questions üret
+            follow_ups = conversation_manager.generate_follow_up_questions(
+                session_id, result['answer']
+            )
+            
+            result['session_id'] = session_id
+            result['follow_up_questions'] = follow_ups
+        
+        # Log the query
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO search_logs (user_id, query, search_type, results_count, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                user_id,
+                question,
+                f'rag_{query_type}',
+                len(result.get('sources', [])),
+                datetime.now().isoformat()
+            ))
+            conn.commit()
+            conn.close()
+        except Exception as log_error:
+            print(f"Failed to log RAG query: {log_error}")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/rag/comprehensive-report', methods=['POST'])
+@login_required
+def rag_comprehensive_report():
+    """RAG ile kapsamlı AI raporu üret"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        max_docs = data.get('max_docs', 10)
+        
+        if not query:
+            return jsonify({'error': 'Query is required', 'success': False}), 400
+        
+        if not rag_system:
+            return jsonify({'error': 'RAG system not initialized', 'success': False}), 500
+        
+        # Kapsamlı rapor üret
+        result = rag_system.generate_comprehensive_report(query, max_docs)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/rag/chat')
+@login_required
+def rag_chat():
+    """RAG Chat Interface"""
+    return render_template('rag_chat.html')
+
+
+# Chat Session Management Endpoints
+@app.route('/chat/sessions', methods=['GET'])
+@login_required
+def get_chat_sessions():
+    """Kullanıcının chat session'larını getir"""
+    try:
+        user_id = session.get('user_id', 'anonymous')
+        sessions = conversation_manager.get_user_sessions(user_id, limit=20)
+        
+        session_data = []
+        for s in sessions:
+            session_data.append({
+                'session_id': s.session_id,
+                'title': s.title,
+                'created_at': s.created_at,
+                'last_activity': s.last_activity,
+                'message_count': s.message_count,
+                'is_active': s.is_active
+            })
+        
+        return jsonify({'sessions': session_data, 'success': True})
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/chat/session/<session_id>/messages', methods=['GET'])
+@login_required
+def get_session_messages(session_id):
+    """Session mesajlarını getir"""
+    try:
+        user_id = session.get('user_id', 'anonymous')
+        
+        # Session doğrula
+        chat_session = conversation_manager.get_session(session_id)
+        if not chat_session or chat_session.user_id != user_id:
+            return jsonify({'error': 'Session not found or access denied', 'success': False}), 404
+        
+        messages = conversation_manager.get_session_messages(session_id)
+        
+        message_data = []
+        for msg in messages:
+            message_data.append({
+                'id': msg.id,
+                'message_type': msg.message_type,
+                'content': msg.content,
+                'metadata': msg.metadata,
+                'timestamp': msg.timestamp
+            })
+        
+        return jsonify({'messages': message_data, 'success': True})
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/chat/session/<session_id>/summary', methods=['GET'])
+@login_required
+def get_session_summary(session_id):
+    """Session özeti getir"""
+    try:
+        user_id = session.get('user_id', 'anonymous')
+        
+        # Session doğrula
+        chat_session = conversation_manager.get_session(session_id)
+        if not chat_session or chat_session.user_id != user_id:
+            return jsonify({'error': 'Session not found or access denied', 'success': False}), 404
+        
+        summary = conversation_manager.get_conversation_summary(session_id)
+        return jsonify({'summary': summary, 'success': True})
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/chat/session/create', methods=['POST'])
+@login_required
+def create_chat_session():
+    """Yeni chat session oluştur"""
+    try:
+        data = request.get_json()
+        title = data.get('title', f"Chat - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        user_id = session.get('user_id', 'anonymous')
+        
+        session_id = conversation_manager.create_session(user_id, title)
+        
+        if session_id:
+            return jsonify({'session_id': session_id, 'success': True})
+        else:
+            return jsonify({'error': 'Failed to create session', 'success': False}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
 
 
 @app.route('/file')
@@ -1082,7 +1399,71 @@ def optimize_system():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+# Analytics Endpoints
+@app.route('/analytics')
+@admin_required
+def analytics_dashboard():
+    """Analytics dashboard"""
+    try:
+        if not analytics_system:
+            flash('Analytics sistemi kullanılamıyor', 'error')
+            return redirect(url_for('admin_dashboard'))
+        
+        # Get dashboard data
+        dashboard = analytics_system.get_system_dashboard()
+        trends = analytics_system.get_search_trends(7)
+        
+        return render_template('analytics_dashboard.html',
+                             dashboard=dashboard,
+                             trends=trends)
+    except Exception as e:
+        flash(f'Analytics yüklenirken hata: {str(e)}', 'error')
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/analytics/export', methods=['POST'])
+@admin_required
+def export_analytics():
+    """Export analytics report"""
+    try:
+        if not analytics_system:
+            return jsonify({'error': 'Analytics system not available'}), 500
+        
+        report_path = analytics_system.export_analytics_report(30)
+        if report_path and os.path.exists(report_path):
+            return send_file(safe_path(report_path), as_attachment=True)
+        else:
+            return jsonify({'error': 'Report generation failed'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/analytics/clear-cache', methods=['POST'])
+@admin_required
+def clear_analytics_cache():
+    """Clear analytics cache"""
+    try:
+        # Clear various caches
+        memory_manager.clear_all_caches()
+        return jsonify({'success': True, 'message': 'Cache temizlendi'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/analytics/user/<user_id>')
+@admin_required
+def user_analytics(user_id):
+    """Get user-specific analytics"""
+    try:
+        if not analytics_system:
+            return jsonify({'error': 'Analytics system not available'}), 500
+        
+        insights = analytics_system.get_user_insights(user_id)
+        return jsonify(insights)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
+    # Initialize RAG System
+    initialize_rag_system()
+    
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     # Disable Flask debug/reloader to avoid watching site-packages which can trigger
     # continuous reloads on Windows. Use a WSGI server (waitress) in production.

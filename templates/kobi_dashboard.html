@@ -394,7 +394,7 @@
                                             <tbody>
                                                 {% for file_type in dashboard_data.document_analytics.file_types[:5] %}
                                                 <tr>
-                                                    <td>{{ file_type.file_type.upper() }}</td>
+                                                    <td>{{ (file_type.file_type or 'Unknown').upper() }}</td>
                                                     <td>{{ file_type.count }}</td>
                                                     <td>{{ "%.1f"|format(file_type.total_size / 1048576) }} MB</td>
                                                 </tr>

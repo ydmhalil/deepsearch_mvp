@@ -1,0 +1,895 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat Assistant | DeepSearch Enterprise{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-header {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: var(--space-2xl);
+        margin-bottom: var(--space-2xl);
+        box-shadow: var(--shadow-md);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .chat-info h1 {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-bottom: var(--space-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+    }
+    
+    .chat-description {
+        color: var(--neutral-600);
+        font-size: 1.1rem;
+        margin: 0;
+    }
+    
+    .chat-stats {
+        display: flex;
+        gap: var(--space-xl);
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .chat-stats .stat-item {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-xs);
+    }
+    
+    .chat-stats .stat-item i {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+    
+    .chat-stats .stat-item span {
+        font-weight: 600;
+        color: var(--neutral-800);
+    }
+    
+    .chat-stats .stat-item small {
+        color: var(--neutral-500);
+        font-size: 0.8rem;
+    }
+    
+    .chat-container {
+        height: 70vh;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--space-xl);
+        background: var(--neutral-50);
+    }
+    
+    .chat-message {
+        display: flex;
+        margin-bottom: var(--space-lg);
+        align-items: flex-start;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .chat-message.user {
+        justify-content: flex-end;
+    }
+    
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin: 0 var(--space-md);
+        flex-shrink: 0;
+    }
+    
+    .chat-message.assistant .message-avatar {
+        background: var(--primary-gradient);
+        color: white;
+    }
+    
+    .chat-message.user .message-avatar {
+        background: var(--secondary-color);
+        color: white;
+        order: 2;
+    }
+    
+    .message-content {
+        max-width: 70%;
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--neutral-200);
+    }
+    
+    .chat-message.user .message-content {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .message-text {
+        line-height: 1.6;
+        margin-bottom: var(--space-sm);
+        color: var(--neutral-700);
+    }
+    
+    .chat-message.user .message-text {
+        color: white;
+    }
+    
+    .message-time {
+        font-size: 0.8rem;
+        color: var(--neutral-500);
+        text-align: right;
+        margin-top: var(--space-sm);
+    }
+    
+    .chat-message.user .message-time {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .message-sources {
+        margin-top: var(--space-md);
+        padding-top: var(--space-md);
+        border-top: 1px solid var(--neutral-200);
+        font-size: 0.9rem;
+    }
+    
+    .message-sources ul {
+        margin: var(--space-sm) 0 0 0;
+        padding-left: var(--space-lg);
+    }
+    
+    .chat-input-container {
+        background: white;
+        padding: var(--space-xl);
+        border-top: 1px solid var(--neutral-200);
+    }
+    
+    .input-options {
+        display: flex;
+        gap: var(--space-lg);
+        margin-top: var(--space-md);
+        flex-wrap: wrap;
+    }
+    
+    .option-label {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        font-size: 0.9rem;
+        color: var(--neutral-600);
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+    
+    .option-label:hover {
+        color: var(--primary-color);
+    }
+    
+    .typing-indicator .typing-dots {
+        display: flex;
+        gap: var(--space-xs);
+        align-items: center;
+        padding: var(--space-md);
+    }
+    
+    .typing-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        animation: typing 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.5;
+        }
+        30% {
+            transform: translateY(-10px);
+            opacity: 1;
+        }
+    }
+    
+    .history-item {
+        padding: var(--space-md);
+        margin-bottom: var(--space-sm);
+        background: var(--neutral-50);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        border: 1px solid var(--neutral-200);
+    }
+    
+    .history-item:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    .session-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+    
+    .session-title {
+        font-weight: 500;
+        color: var(--neutral-800);
+        font-size: 0.9rem;
+    }
+    
+    .history-item:hover .session-title {
+        color: white;
+    }
+    
+    .session-meta {
+        color: var(--neutral-500);
+        font-size: 0.8rem;
+    }
+    
+    .history-item:hover .session-meta {
+        color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .follow-up-questions {
+        margin: var(--space-lg) 0;
+        padding: var(--space-lg);
+        background: rgba(44, 90, 160, 0.05);
+        border-radius: var(--radius-lg);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .follow-up-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-md);
+        color: var(--primary-color);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .follow-up-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+    
+    .follow-up-btn {
+        text-align: left;
+        font-size: 0.85rem;
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+        transition: var(--transition-fast);
+        border: 1px solid var(--primary-color);
+        background: white;
+        color: var(--primary-color);
+    }
+    
+    .follow-up-btn:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .topic-tag {
+        display: inline-block;
+        background: rgba(44, 90, 160, 0.1);
+        color: var(--primary-color);
+        padding: var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-xl);
+        font-size: 0.8rem;
+        margin: var(--space-xs);
+        font-weight: 500;
+    }
+    
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-sm);
+        padding: var(--space-md) 0;
+        border-bottom: 1px solid var(--neutral-200);
+    }
+    
+    .status-item:last-child {
+        border-bottom: none;
+    }
+    
+    .status-label {
+        color: var(--neutral-600);
+        font-weight: 500;
+    }
+    
+    .status-value {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+        font-weight: 600;
+    }
+    
+    .example-questions {
+        margin-top: var(--space-lg);
+        padding: var(--space-lg);
+        background: rgba(44, 90, 160, 0.05);
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(44, 90, 160, 0.1);
+    }
+    
+    .example-questions ul {
+        margin: var(--space-sm) 0 0 0;
+        padding-left: var(--space-lg);
+    }
+    
+    .example-questions li {
+        margin-bottom: var(--space-sm);
+        color: var(--neutral-600);
+    }
+    
+    @media (max-width: 768px) {
+        .chat-header {
+            padding: var(--space-xl) var(--space-lg);
+        }
+        
+        .chat-stats {
+            justify-content: center;
+            margin-top: var(--space-lg);
+            gap: var(--space-lg);
+        }
+        
+        .message-content {
+            max-width: 85%;
+        }
+        
+        .input-options {
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .chat-container {
+            height: 60vh;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Chat Header -->
+<div class="container">
+    <div class="chat-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="chat-info">
+                    <h1>
+                        <i class="bi bi-robot"></i>
+                        AI-Powered Document Assistant
+                    </h1>
+                    <p class="chat-description">
+                        Belgelerinizi sorulayın, kapsamlı analizler alın. Savunma sanayi terminolojisi destekli akıllı asistan.
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="chat-stats">
+                    <div class="stat-item">
+                        <i class="bi bi-files"></i>
+                        <span id="totalDocs">-</span>
+                        <small>Belge</small>
+                    </div>
+                    <div class="stat-item">
+                        <i class="bi bi-lightning"></i>
+                        <span>RAG</span>
+                        <small>Aktif</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Chat Interface -->
+<div class="container">
+    <div class="row">
+        <!-- Chat Area -->
+        <div class="col-lg-8">
+            <div class="chat-container">
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Message -->
+                    <div class="chat-message assistant">
+                        <div class="message-avatar">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                Merhaba! Ben DeepSearch AI asistanınızım. Belgeleriniz hakkında sorular sorabilir, kapsamlı analizler isteyebilirsiniz.
+                                
+                                <div class="example-questions">
+                                    <strong>Örnek sorular:</strong>
+                                    <ul>
+                                        <li>"Güvenlik prosedürleri nelerdir?"</li>
+                                        <li>"Sistem gereksinimleri hakkında özet çıkar"</li>
+                                        <li>"Risk değerlendirmesi nasıl yapılmalı?"</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="message-time">
+                                Az önce
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">
+                            <i class="bi bi-question-circle"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control-unified" 
+                               id="chatInput" 
+                               placeholder="Belgeleriniz hakkında soru sorun..."
+                               maxlength="500">
+                        <button class="btn btn-unified btn-unified-primary" id="sendButton" onclick="sendMessage()">
+                            <i class="bi bi-send me-2"></i>Gönder
+                        </button>
+                    </div>
+                    <div class="input-options">
+                        <label class="option-label">
+                            <input type="radio" name="queryType" value="qa" checked>
+                            <span>Soru-Cevap</span>
+                        </label>
+                        <label class="option-label">
+                            <input type="radio" name="queryType" value="summary">
+                            <span>Özet Çıkar</span>
+                        </label>
+                        <label class="option-label">
+                            <input type="radio" name="queryType" value="comprehensive">
+                            <span>Kapsamlı Rapor</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="sidebar">
+                <!-- New Session Button -->
+                <button class="btn btn-unified btn-unified-success w-100 mb-3" onclick="createNewSession()">
+                    <i class="bi bi-plus me-2"></i>Yeni Sohbet Başlat
+                </button>
+
+                <!-- Quick Actions -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-lightning"></i>
+                        <h4>Hızlı Sorular</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        <button class="btn btn-unified btn-unified-secondary w-100 mb-2" onclick="askPredefined('Güvenlik prosedürleri nelerdir?')">
+                            <i class="bi bi-shield me-2"></i>
+                            Güvenlik Prosedürleri
+                        </button>
+                        <button class="btn btn-unified btn-unified-secondary w-100 mb-2" onclick="askPredefined('Sistem gereksinimleri neler?')">
+                            <i class="bi bi-gear me-2"></i>
+                            Sistem Gereksinimleri
+                        </button>
+                        <button class="btn btn-unified btn-unified-secondary w-100 mb-2" onclick="askPredefined('Risk değerlendirmesi nasıl yapılır?')">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Risk Değerlendirmesi
+                        </button>
+                        <button class="btn btn-unified btn-unified-primary w-100" onclick="generateComprehensiveReport()">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i>
+                            Kapsamlı Rapor Üret
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat History -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-clock-history"></i>
+                        <h4>Son Sorular</h4>
+                    </div>
+                    <div class="sidebar-content" id="chatHistory">
+                        <p class="text-muted">Henüz soru sorulmadı.</p>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-cpu"></i>
+                        <h4>Sistem Durumu</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="status-item">
+                            <span class="status-label">RAG Sistemi:</span>
+                            <span class="status-value text-success">
+                                <i class="bi bi-check-circle"></i>
+                                Aktif
+                            </span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">FAISS Index:</span>
+                            <span class="status-value text-success">
+                                <i class="bi bi-check-circle"></i>
+                                Yüklü
+                            </span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Embedding Model:</span>
+                            <span class="status-value text-info">
+                                Multilingual MPNET
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Chat functionality
+    let chatHistory = [];
+    let currentSessionId = null;
+    let followUpQuestions = [];
+    
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        const queryType = document.querySelector('input[name="queryType"]:checked').value;
+        
+        // Add user message to chat
+        addMessage(message, 'user');
+        
+        // Clear input
+        input.value = '';
+        
+        // Show typing indicator
+        showTypingIndicator();
+        
+        // Send to RAG system
+        if (queryType === 'comprehensive') {
+            sendComprehensiveQuery(message);
+        } else {
+            sendRAGQuery(message, queryType);
+        }
+        
+        // Add to history
+        addToHistory(message);
+    }
+    
+    function sendRAGQuery(question, type) {
+        fetch('/rag/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: question,
+                type: type,
+                session_id: currentSessionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideTypingIndicator();
+            
+            if (data.success) {
+                // Update session ID
+                if (data.session_id) {
+                    currentSessionId = data.session_id;
+                }
+                
+                // Add assistant response
+                addMessage(data.answer, 'assistant', data.sources);
+                
+                // Show follow-up questions
+                if (data.follow_up_questions && data.follow_up_questions.length > 0) {
+                    showFollowUpQuestions(data.follow_up_questions);
+                }
+                
+                // Update session in sidebar
+                updateSessionInfo();
+                
+            } else {
+                addMessage('Üzgünüm, sorgunuzu işlerken bir hata oluştu: ' + data.error, 'assistant');
+            }
+        })
+        .catch(error => {
+            hideTypingIndicator();
+            addMessage('Bağlantı hatası oluştu. Lütfen tekrar deneyin.', 'assistant');
+            console.error('Error:', error);
+        });
+    }
+    
+    function sendComprehensiveQuery(query) {
+        fetch('/rag/comprehensive-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query: query,
+                max_docs: 15
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideTypingIndicator();
+            
+            if (data.success) {
+                // Format comprehensive report
+                let reportText = `**Kapsamlı Rapor: ${query}**\n\n`;
+                
+                if (data.report_sections.executive_summary) {
+                    reportText += `**Yönetici Özeti:**\n${data.report_sections.executive_summary}\n\n`;
+                }
+                
+                if (data.report_sections.key_findings) {
+                    reportText += `**Ana Bulgular:**\n${data.report_sections.key_findings}\n\n`;
+                }
+                
+                if (data.report_sections.technical_analysis) {
+                    reportText += `**Teknik Analiz:**\n${data.report_sections.technical_analysis}\n\n`;
+                }
+                
+                if (data.report_sections.recommendations) {
+                    reportText += `**Öneriler:**\n${data.report_sections.recommendations}`;
+                }
+                
+                addMessage(reportText, 'assistant', data.sources);
+            } else {
+                addMessage('Kapsamlı rapor oluşturulurken hata oluştu: ' + data.error, 'assistant');
+            }
+        })
+        .catch(error => {
+            hideTypingIndicator();
+            addMessage('Bağlantı hatası oluştu. Lütfen tekrar deneyin.', 'assistant');
+            console.error('Error:', error);
+        });
+    }
+    
+    function addMessage(text, sender, sources = null) {
+        const messagesContainer = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${sender}`;
+        
+        const avatar = sender === 'user' ? '<i class="bi bi-person"></i>' : '<i class="bi bi-robot"></i>';
+        
+        let sourcesHtml = '';
+        if (sources && sources.length > 0) {
+            sourcesHtml = `
+                <div class="message-sources">
+                    <strong>Kaynaklar:</strong>
+                    <ul>
+                        ${sources.map(source => `
+                            <li>
+                                <strong>${source.file_path.split('/').pop()}</strong>
+                                <small>(Relevance: ${(source.score * 100).toFixed(1)}%)</small>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        messageDiv.innerHTML = `
+            <div class="message-avatar">
+                ${avatar}
+            </div>
+            <div class="message-content">
+                <div class="message-text">${formatMessage(text)}</div>
+                ${sourcesHtml}
+                <div class="message-time">
+                    ${new Date().toLocaleTimeString('tr-TR')}
+                </div>
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    function showFollowUpQuestions(questions) {
+        // Remove existing follow-up questions
+        const existingFollowUps = document.querySelectorAll('.follow-up-questions');
+        existingFollowUps.forEach(elem => elem.remove());
+        
+        if (questions.length === 0) return;
+        
+        const messagesContainer = document.getElementById('chatMessages');
+        const followUpDiv = document.createElement('div');
+        followUpDiv.className = 'follow-up-questions';
+        
+        followUpDiv.innerHTML = `
+            <div class="follow-up-header">
+                <i class="bi bi-lightbulb"></i>
+                <strong>Takip soruları:</strong>
+            </div>
+            <div class="follow-up-buttons">
+                ${questions.map(q => {
+                    const escapedQ = q.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+                    return `<button class="btn follow-up-btn" onclick="askFollowUp('${escapedQ}')">${q}</button>`;
+                }).join('')}
+            </div>
+        `;
+        
+        messagesContainer.appendChild(followUpDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    function askFollowUp(question) {
+        const decodedQuestion = question.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+        document.getElementById('chatInput').value = decodedQuestion;
+        sendMessage();
+    }
+    
+    function showTypingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'chat-message assistant typing-indicator';
+        indicator.id = 'typingIndicator';
+        indicator.innerHTML = `
+            <div class="message-avatar">
+                <i class="bi bi-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('chatMessages').appendChild(indicator);
+        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+    }
+    
+    function hideTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+    
+    function askPredefined(question) {
+        document.getElementById('chatInput').value = question;
+        sendMessage();
+    }
+    
+    function generateComprehensiveReport() {
+        const query = prompt('Hangi konu hakkında kapsamlı rapor istiyorsunuz?', 'güvenlik');
+        if (query) {
+            document.getElementById('chatInput').value = query;
+            document.querySelector('input[value="comprehensive"]').checked = true;
+            sendMessage();
+        }
+    }
+    
+    function addToHistory(question) {
+        chatHistory.unshift(question);
+        chatHistory = chatHistory.slice(0, 5); // Keep last 5
+        
+        const historyContainer = document.getElementById('chatHistory');
+        if (chatHistory.length === 0) {
+            historyContainer.innerHTML = '<p class="text-muted">Henüz soru sorulmadı.</p>';
+            return;
+        }
+        
+        historyContainer.innerHTML = chatHistory.map(q => `
+            <div class="history-item" onclick="askPredefined('${q.replace(/'/g, "&apos;")}')">
+                <i class="bi bi-chat"></i>
+                <div class="session-info">
+                    <span class="session-title">${q.length > 30 ? q.substring(0, 30) + '...' : q}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function formatMessage(text) {
+        // Basic markdown formatting
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>')
+            .replace(/- (.*?)(?=\n|$)/g, '• $1');
+    }
+    
+    function createNewSession() {
+        fetch('/chat/session/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: `Yeni Chat - ${new Date().toLocaleTimeString('tr-TR')}`
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear current chat
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="chat-message assistant">
+                        <div class="message-avatar">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                Merhaba! Yeni bir sohbet başlattık. Belgeleriniz hakkında sorular sorabilirsiniz.
+                            </div>
+                            <div class="message-time">
+                                ${new Date().toLocaleTimeString('tr-TR')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                currentSessionId = data.session_id;
+                showToast('Yeni sohbet başlatıldı', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Failed to create new session:', error);
+            showToast('Yeni sohbet başlatılamadı', 'error');
+        });
+    }
+    
+    function updateSessionInfo() {
+        // Update session stats if needed
+        // This can be expanded based on your RAG system's response
+    }
+    
+    // Enter key support
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+    
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', function() {
+        // You can add API call to get actual document count
+        document.getElementById('totalDocs').textContent = '1000+';
+    });
+</script>
+{% endblock %}

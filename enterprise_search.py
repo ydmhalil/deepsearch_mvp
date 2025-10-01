@@ -156,9 +156,19 @@ class EnterpriseSearchEngine:
             for line in f:
                 try:
                     chunk = json.loads(line)
-                    chunk_id = chunk['chunk_id']
+                    
+                    # Get chunk_id from metadata or generate one
+                    if 'meta' in chunk and 'chunk_id' in chunk['meta']:
+                        chunk_id = str(chunk['meta']['chunk_id'])
+                    elif 'chunk_id' in chunk:
+                        chunk_id = str(chunk['chunk_id'])
+                    else:
+                        # Generate a unique chunk_id based on file_path and index
+                        file_path = chunk.get('file_path', 'unknown')
+                        chunk_id = f"{file_path}_{len(self.document_corpus)}"
+                    
                     text = chunk['text'].lower()
-                    file_path = chunk['metadata']['file_path']
+                    file_path = chunk['file_path']
                     
                     # Store document content
                     if file_path not in self.document_corpus:
@@ -579,7 +589,26 @@ def get_enterprise_search_engine(config: Dict[str, Any] = None) -> EnterpriseSea
     
     if enterprise_search is None:
         from enterprise_config import ENTERPRISE_CONFIG
-        config = config or ENTERPRISE_CONFIG['SEARCH_SETTINGS']
+        
+        # Use provided config or fallback to default search settings
+        if config is None:
+            if 'SEARCH_SETTINGS' in ENTERPRISE_CONFIG:
+                config = ENTERPRISE_CONFIG['SEARCH_SETTINGS']
+            else:
+                # Default search settings if not found in config
+                config = {
+                    'max_concurrent_searches': 100,
+                    'search_timeout': 30,
+                    'cache_search_results': True,
+                    'cache_ttl': 3600,
+                    'max_results_per_search': 1000,
+                    'enable_search_analytics': True,
+                    'enable_search_suggestions': True,
+                    'suggestion_cache_size': 10000,
+                    'parallel_processing': True,
+                    'max_workers': 8
+                }
+        
         enterprise_search = EnterpriseSearchEngine(config)
     
     return enterprise_search
