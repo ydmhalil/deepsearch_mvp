@@ -48,14 +48,28 @@ export const api = {
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText));
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } catch (e) {
+            reject(new APIError(xhr.status, 'Invalid response format'));
+          }
         } else {
-          reject(new APIError(xhr.status, 'Upload failed'));
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new APIError(xhr.status, error.message || error.error || 'Upload failed'));
+          } catch (e) {
+            reject(new APIError(xhr.status, `Upload failed: ${xhr.statusText}`));
+          }
         }
       });
 
       xhr.addEventListener('error', () => {
-        reject(new APIError(0, 'Network error'));
+        reject(new APIError(0, `Network error: Could not connect to ${API_BASE_URL}`));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        reject(new APIError(0, 'Upload timeout'));
       });
 
       xhr.open('POST', `${API_BASE_URL}/upload_file`);

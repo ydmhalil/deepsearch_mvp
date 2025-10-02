@@ -9,6 +9,80 @@ export interface Document {
   page_count?: number;
 }
 
+export interface KeywordMatch {
+  sentence: string;
+  context: string;
+  matched_words: string[];
+  match_count: number;
+  sentence_index: number;
+}
+
+export interface SemanticAnalysis {
+  exact_keyword_matches: number;
+  total_keywords: number;
+  match_ratio: number;
+  word_density: number;
+  dominant_category: string;
+  category_strength: number;
+}
+
+export interface SearchHighlights {
+  matched_words: string[];
+  best_context: string;
+}
+
+export interface ProfessionalCategory {
+  id: number;
+  name: string;
+  description?: string;
+  color_code: string;
+  icon: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SecurityLevel {
+  id: number;
+  name: string;
+  level_number: number;
+  description?: string;
+  color_code: string;
+  requirements?: string;
+  is_active: boolean;
+}
+
+export interface DocumentClassification {
+  category: {
+    id: number;
+    name: string;
+    confidence: number;
+  };
+  security_level: {
+    id: number;
+    name: string;
+    level_number: number;
+  };
+  access_granted: boolean;
+}
+
+export interface UserPermissions {
+  categories: Array<{
+    category_id: number;
+    category_name: string;
+    permission_type: string;
+    color_code: string;
+    icon: string;
+  }>;
+  security_levels: Array<{
+    security_level_id: number;
+    level_name: string;
+    level_number: number;
+    permission_type: string;
+    color_code: string;
+  }>;
+  max_security_level: number;
+}
+
 export interface SearchResult {
   file_path: string;
   file_name: string;
@@ -18,6 +92,10 @@ export interface SearchResult {
     page?: number;
     section?: string;
   };
+  keyword_matches?: KeywordMatch[];
+  semantic_analysis?: SemanticAnalysis;
+  highlights?: SearchHighlights;
+  classification?: DocumentClassification;
 }
 
 export interface SearchResponse {

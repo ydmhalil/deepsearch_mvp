@@ -1,0 +1,25 @@
+YENI TEST BELGESI - FİNANSAL RAPOR
+
+Bu belge finansal raporlama sistemi için test amaçlı oluşturulmuştur.
+
+1. GELİR BÖLÜMİ
+- Toplam gelir: 1.500.000 TL
+- Satış geliri: 1.200.000 TL  
+- Diğer gelirler: 300.000 TL
+
+2. GİDER BÖLÜMİ
+- Personel giderleri: 800.000 TL
+- Operasyonel giderler: 400.000 TL
+- Pazarlama giderleri: 200.000 TL
+
+3. KÂRLILILIK ANALİZİ
+- Brüt kar: 700.000 TL
+- Net kar: 100.000 TL
+- Kar marjı: %6.67
+
+Bu finansal rapor şirketin çeyreklik performansını göstermektedir.
+Tüm veriler muhasebe departmanı tarafından doğrulanmıştır.
+
+GİZLİLİK SEVİYESİ: Sınırlı Erişim
+HAZIRLAYEN: Mali İşler Müdürü
+TARİH: 2025-10-02

@@ -110,8 +110,10 @@ def load_index(index_path: str, meta_path: str):
 def search(index_path: str, meta_path: str, query: str, model_name: str = 'sentence-transformers/paraphrase-multilingual-mpnet-base-v2', top_k: int = 5, use_domain_embedding: bool = True):
     """Search using optimized FAISS implementation with domain-specific embedding"""
     try:
-        # Use optimized search if available
-        results = faiss_optimizer.search_optimized(query, topk=top_k)
+        # DISABLED: Use optimized search if available
+        # results = faiss_optimizer.search_optimized(query, topk=top_k)
+        # Force domain-specific search instead
+        raise Exception("Force domain-specific search")
         
         # Convert to legacy format for compatibility
         legacy_results = []

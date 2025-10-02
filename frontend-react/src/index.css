@@ -30,6 +30,54 @@
     @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300;
   }
 
+  .search-result-card {
+    @apply bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200;
+  }
+
+  .search-result-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .keyword-highlight {
+    @apply bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium;
+  }
+
+  .category-badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .category-finansal {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .category-güvenlik {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .category-teknik {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .category-genel {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  .match-score-high {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .match-score-medium {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .match-score-low {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .section-info {
+    @apply p-3 bg-gray-50 rounded-lg border-l-4 border-l-[var(--primary-color)];
+  }
+
   .btn-primary {
     @apply bg-[var(--primary-color)] hover:bg-[var(--primary-dark)] text-white font-medium px-6 py-2.5 rounded-lg transition-colors duration-200;
   }

@@ -5,6 +5,7 @@ Handles file uploads, validation, and auto-indexing
 
 import os
 import hashlib
+import json
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from init_database import get_db_connection
@@ -136,13 +137,15 @@ class FileUploadManager:
                 return {'success': False, 'message': 'Bu dosya daha önce yüklenmiş'}
             
             # Record in database
+            file_type = os.path.splitext(file.filename)[1].lower().replace('.', '')
             cursor.execute('''
-                INSERT INTO documents (filename, file_path, file_size, upload_date, uploaded_by, file_hash, is_indexed)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO documents (filename, file_path, file_size, file_type, upload_date, uploaded_by, file_hash, is_indexed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 file.filename,  # Original filename
                 filepath,       # Full path
                 file_size,
+                file_type,      # File extension
                 datetime.now(),
                 user_id,
                 file_hash,
@@ -183,7 +186,8 @@ class FileUploadManager:
                 'document_id': document_id,
                 'filename': filename,
                 'filepath': filepath,
-                'file_size': file_size
+                'file_size': file_size,
+                'file_type': os.path.splitext(file.filename)[1].lower().replace('.', '')
             }
             
         except Exception as e:
@@ -191,6 +195,111 @@ class FileUploadManager:
             if 'filepath' in locals() and os.path.exists(filepath):
                 os.remove(filepath)
             return {'success': False, 'message': f'Dosya yükleme hatası: {str(e)}'}
+    
+    def process_file(self, document_id):
+        """Process uploaded file for text extraction and chunking"""
+        try:
+            # Get document info from database
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM documents WHERE id = ?', (document_id,))
+            document = cursor.fetchone()
+            
+            if not document:
+                return {'success': False, 'error': 'Document not found'}
+            
+            filepath = document['file_path']
+            if not os.path.exists(filepath):
+                return {'success': False, 'error': 'File not found on disk'}
+            
+            # Extract text content
+            file_ext = os.path.splitext(filepath)[1].lower()
+            
+            if file_ext == '.txt':
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    text_content = f.read()
+            else:
+                # Use utils.py for other file types
+                try:
+                    from utils import extract_text
+                    text_content = extract_text(filepath)
+                except ImportError:
+                    # Fallback if utils not available
+                    text_content = f"Content extraction not available for {file_ext} files"
+            
+            if not text_content or len(text_content.strip()) < 10:
+                return {'success': False, 'error': 'No substantial text content found'}
+            
+            # Chunk the text
+            try:
+                from chunker import chunk_text
+                chunks = chunk_text(text_content)
+            except ImportError:
+                # Simple chunking fallback
+                chunk_size = 800
+                chunks = [text_content[i:i+chunk_size] for i in range(0, len(text_content), chunk_size)]
+            
+            # Save chunks to JSONL
+            chunks_file = './data/chunks.jsonl'
+            os.makedirs('./data', exist_ok=True)
+            
+            with open(chunks_file, 'a', encoding='utf-8') as f:
+                for i, chunk in enumerate(chunks):
+                    if isinstance(chunk, dict) and 'text' in chunk:
+                        # Chunker returned dict format
+                        chunk_text = chunk['text']
+                        chunk_meta = chunk.get('meta', {})
+                    else:
+                        # Simple string chunk
+                        chunk_text = str(chunk)
+                        chunk_meta = {'tokens': len(chunk_text.split())}
+                    
+                    chunk_data = {
+                        'file_path': filepath,
+                        'text': chunk_text,
+                        'meta': {
+                            **chunk_meta,
+                            'chunk_id': i,
+                            'chunk_type': 'paragraph_group',
+                            'structure_type': 'text_based',
+                            'file_path': filepath,
+                            'file_type': file_ext,
+                            'file_name': os.path.basename(filepath),
+                            'chunk_index': i,
+                            'total_chunks': len(chunks),
+                            'document_id': document_id
+                        }
+                    }
+                    f.write(json.dumps(chunk_data, ensure_ascii=False) + '\n')
+            
+            # Update database
+            cursor.execute('''
+                UPDATE documents 
+                SET is_indexed = 1, chunks_file = ?
+                WHERE id = ?
+            ''', (chunks_file, document_id))
+            
+            conn.commit()
+            conn.close()
+            
+            return {
+                'success': True,
+                'text_content': text_content,
+                'chunks_count': len(chunks),
+                'chunks_file': chunks_file,
+                'message': 'File processed successfully'
+            }
+            
+        except Exception as e:
+            return {'success': False, 'error': f'Processing failed: {str(e)}'}
+    
+    def get_user_documents(self, user_id):
+        """Get documents for a specific user"""
+        return self.get_uploaded_files(user_id=user_id)
+    
+    def delete_document(self, document_id, user_id):
+        """Delete a document"""
+        return self.delete_file(document_id, user_id)
     
     def get_uploaded_files(self, user_id=None, include_all=False):
         """Get list of uploaded files"""
