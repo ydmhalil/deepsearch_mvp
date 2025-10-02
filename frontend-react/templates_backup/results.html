@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Arama Sonuçları | DeepSearch Enterprise{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-header {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: var(--space-2xl);
+        margin-bottom: var(--space-2xl);
+        box-shadow: var(--shadow-md);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .search-query {
+        background: var(--neutral-50);
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-md);
+        margin: var(--space-md) 0;
+        border-left: 3px solid var(--primary-color);
+    }
+    
+    .query-text {
+        font-weight: 600;
+        color: var(--primary-color);
+        font-size: 1.1rem;
+    }
+    
+    .search-stats {
+        display: flex;
+        gap: var(--space-xl);
+        margin-top: var(--space-lg);
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        color: var(--neutral-600);
+        font-weight: 500;
+    }
+    
+    .stat-item i {
+        color: var(--primary-color);
+    }
+    
+    .sidebar-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--neutral-200);
+        margin-bottom: var(--space-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .sidebar-header {
+        background: var(--primary-gradient);
+        color: white;
+        padding: var(--space-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    }
+    
+    .sidebar-header h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .sidebar-content {
+        padding: var(--space-lg);
+    }
+    
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-sm) 0;
+        border-bottom: 1px solid var(--neutral-100);
+    }
+    
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-label {
+        color: var(--neutral-600);
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .filter-item {
+        padding: var(--space-sm) 0;
+        border-bottom: 1px solid var(--neutral-100);
+    }
+    
+    .filter-item:last-child {
+        border-bottom: none;
+    }
+    
+    .filter-key {
+        font-weight: 600;
+        color: var(--neutral-700);
+    }
+    
+    .filter-value {
+        color: var(--neutral-600);
+        margin-left: var(--space-sm);
+    }
+    
+    .help-text {
+        color: var(--neutral-600);
+        font-size: 0.9rem;
+        margin-bottom: var(--space-lg);
+    }
+    
+    .help-link {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        color: var(--primary-color);
+        text-decoration: none;
+        padding: var(--space-sm) 0;
+        transition: var(--transition-fast);
+    }
+    
+    .help-link:hover {
+        color: var(--primary-dark);
+        text-decoration: none;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: var(--space-3xl) var(--space-xl);
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .no-results-icon {
+        font-size: 4rem;
+        color: var(--neutral-400);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .no-results h3 {
+        color: var(--neutral-700);
+        margin-bottom: var(--space-md);
+    }
+    
+    .no-results p {
+        color: var(--neutral-600);
+        margin-bottom: var(--space-xl);
+    }
+    
+    .metadata-section {
+        background: var(--neutral-50);
+        padding: var(--space-lg);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--space-md);
+    }
+    
+    .metadata-item {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+    
+    .metadata-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--neutral-500);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .metadata-value {
+        font-weight: 500;
+        color: var(--neutral-700);
+    }
+    
+    .document-snippet {
+        margin-bottom: var(--space-lg);
+    }
+    
+    .snippet-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-md);
+        color: var(--neutral-700);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .snippet-content {
+        background: var(--neutral-50);
+        padding: var(--space-lg);
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--primary-color);
+        line-height: 1.7;
+        color: var(--neutral-700);
+        font-style: italic;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: var(--space-sm);
+        flex-wrap: wrap;
+    }
+    
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: var(--space-lg);
+        flex: 1;
+    }
+    
+    .file-icon {
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        height: 60px;
+        background: var(--neutral-50);
+        border-radius: var(--radius-md);
+    }
+    
+    .file-details h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--neutral-800);
+    }
+    
+    .file-path {
+        margin: var(--space-xs) 0 0 0;
+        color: var(--neutral-500);
+        font-size: 0.9rem;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .search-actions {
+        display: flex;
+        gap: var(--space-sm);
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    @media (max-width: 768px) {
+        .search-stats {
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .search-actions {
+            justify-content: center;
+            margin-top: var(--space-lg);
+        }
+        
+        .file-info {
+            flex-direction: column;
+            text-align: center;
+            gap: var(--space-md);
+        }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+        
+        .metadata-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Search Header -->
+<div class="container">
+    <div class="search-header">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="mb-3">
+                    <i class="bi bi-search text-primary me-2"></i>
+                    Arama Sonuçları
+                </h1>
+                <div class="search-query">
+                    <span class="query-label text-muted">Aranan: </span>
+                    <span class="query-text">"{{ query }}"</span>
+                </div>
+                <div class="search-stats">
+                    <div class="stat-item">
+                        <i class="bi bi-file-text"></i>
+                        <span>{{ results|length }} sonuç bulundu</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="bi bi-clock"></i>
+                        <span>{% if search_timestamp %}{{ search_timestamp }}{% else %}Az önce{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="search-actions">
+                    <form action="/report" method="post" class="d-inline">
+                        <input type="hidden" name="query" value="{{ query }}" />
+                        <button type="submit" class="btn btn-unified btn-unified-primary">
+                            <i class="bi bi-file-earmark-text me-2"></i>
+                            Rapor Oluştur
+                        </button>
+                    </form>
+                    <a href="{{ url_for('index') }}" class="btn btn-unified btn-unified-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Yeni Arama
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message -->
+{% if error %}
+<div class="container">
+    <div class="alert alert-unified alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Sistem Hatası:</strong> {{ error }}
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content -->
+<div class="container">
+    <div class="row">
+        <!-- Results Column -->
+        <div class="col-lg-9">
+            <div class="results-container">
+                {% for r in results %}
+                <div class="search-result-item">
+                    <div class="search-result-header">
+                        <div class="file-info">
+                            <div class="file-icon">
+                                {% if r.file_name.endswith('.pdf') %}
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                {% elif r.file_name.endswith('.docx') or r.file_name.endswith('.doc') %}
+                                    <i class="bi bi-file-earmark-word text-primary"></i>
+                                {% elif r.file_name.endswith('.xlsx') or r.file_name.endswith('.xls') %}
+                                    <i class="bi bi-file-earmark-excel text-success"></i>
+                                {% elif r.file_name.endswith('.pptx') or r.file_name.endswith('.ppt') %}
+                                    <i class="bi bi-file-earmark-ppt text-warning"></i>
+                                {% else %}
+                                    <i class="bi bi-file-earmark-text text-info"></i>
+                                {% endif %}
+                            </div>
+                            <div class="file-details">
+                                <h3 class="search-result-title">{{ r.file_name }}</h3>
+                                <p class="file-path">{{ r.file_path }}</p>
+                            </div>
+                        </div>
+                        <div class="score-badge">
+                            {{ '%.1f'|format(r.score * 100) }}%
+                        </div>
+                    </div>
+
+                    <div class="search-result-body">
+                        <!-- Metadata Section -->
+                        {% if r.chunk_info %}
+                        <div class="metadata-section">
+                            <div class="metadata-grid">
+                                <div class="metadata-item">
+                                    <span class="metadata-label">Dosya Türü</span>
+                                    <span class="metadata-value">{{ r.chunk_info.file_type }}</span>
+                                </div>
+                                <div class="metadata-item">
+                                    <span class="metadata-label">Yapı Türü</span>
+                                    <span class="metadata-value">{{ r.chunk_info.structure_type }}</span>
+                                </div>
+                                {% if r.chunk_info.total_chunks > 1 %}
+                                <div class="metadata-item">
+                                    <span class="metadata-label">Bölüm</span>
+                                    <span class="metadata-value">{{ r.chunk_info.chunk_index + 1 }}/{{ r.chunk_info.total_chunks }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Document Snippet -->
+                        <div class="document-snippet">
+                            <div class="snippet-header">
+                                <i class="bi bi-quote"></i>
+                                <span>Belge İçeriği</span>
+                            </div>
+                            <div class="snippet-content">
+                                {{ r.snippet|truncate(800) }}
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <a href="{{ r.download_url }}" class="btn btn-unified btn-unified-primary btn-sm">
+                                <i class="bi bi-download me-1"></i>
+                                İndir
+                            </a>
+                            <a href="/preview?path={{ r.file_path }}" target="_blank" class="btn btn-unified btn-unified-secondary btn-sm">
+                                <i class="bi bi-eye me-1"></i>
+                                Önizle
+                            </a>
+                            <button class="btn btn-unified btn-unified-secondary btn-sm" onclick="copySnippet(this)" data-snippet="{{ r.snippet|replace('"', '&quot;')|replace("'", '&#39;') }}">
+                                <i class="bi bi-clipboard me-1"></i>
+                                Kopyala
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-results">
+                    <div class="no-results-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <h3>Sonuç Bulunamadı</h3>
+                    <p>Aramanız için eşleşen belge bulunamadı. Arama kriterlerinizi değiştirip tekrar deneyin.</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-unified btn-unified-primary">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        Yeni Arama Yap
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="sidebar">
+                <!-- Quick Actions -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-lightning"></i>
+                        <h4>Hızlı İşlemler</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        <form action="/report" method="post" class="mb-3">
+                            <input type="hidden" name="query" value="{{ query }}" />
+                            <button type="submit" class="btn btn-unified btn-unified-success w-100 mb-2">
+                                <i class="bi bi-file-earmark-bar-graph me-2"></i>
+                                Detaylı Rapor
+                            </button>
+                        </form>
+                        <a href="{{ url_for('index') }}" class="btn btn-unified btn-unified-secondary w-100 mb-2">
+                            <i class="bi bi-search me-2"></i>
+                            Yeni Arama
+                        </a>
+                        <button class="btn btn-unified btn-unified-secondary w-100" onclick="exportResults()">
+                            <i class="bi bi-download me-2"></i>
+                            Sonuçları Dışa Aktar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Statistics -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-bar-chart"></i>
+                        <h4>Arama İstatistikleri</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="stat-row">
+                            <span class="stat-label">Toplam Sonuç:</span>
+                            <span class="stat-value">{{ results|length }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">En Yüksek Skor:</span>
+                            <span class="stat-value">
+                                {% if results %}{{ '%.1f'|format(results[0].score * 100) }}%{% else %}0%{% endif %}
+                            </span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Arama Türü:</span>
+                            <span class="stat-value">Semantic Search</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applied Filters -->
+                {% if applied_filters %}
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-funnel"></i>
+                        <h4>Uygulanan Filtreler</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        {% for key, value in applied_filters.items() %}
+                        <div class="filter-item">
+                            <span class="filter-key">{{ key }}:</span>
+                            <span class="filter-value">{{ value }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Help & Support -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="bi bi-question-circle"></i>
+                        <h4>Yardım</h4>
+                    </div>
+                    <div class="sidebar-content">
+                        <p class="help-text">
+                            Daha iyi sonuçlar için spesifik anahtar kelimeler kullanın.
+                        </p>
+                        <a href="#" class="help-link">
+                            <i class="bi bi-book"></i>
+                            Arama Kılavuzu
+                        </a>
+                        <a href="#" class="help-link">
+                            <i class="bi bi-headset"></i>
+                            Teknik Destek
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function copySnippet(button) {
+        const snippet = button.getAttribute('data-snippet');
+        navigator.clipboard.writeText(snippet).then(function() {
+            showToast('Metin panoya kopyalandı', 'success');
+            
+            // Change button text temporarily
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-check me-1"></i>Kopyalandı';
+            button.classList.add('btn-unified-success');
+            button.classList.remove('btn-unified-secondary');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-unified-success');
+                button.classList.add('btn-unified-secondary');
+            }, 2000);
+        }).catch(function() {
+            showToast('Kopyalama başarısız', 'error');
+        });
+    }
+
+    function exportResults() {
+        showToast('Sonuçlar CSV formatında dışa aktarılıyor...', 'info');
+        
+        // Create CSV content
+        const results = [];
+        document.querySelectorAll('.search-result-item').forEach(item => {
+            const title = item.querySelector('.search-result-title').textContent;
+            const path = item.querySelector('.file-path').textContent;
+            const score = item.querySelector('.score-badge').textContent;
+            const snippet = item.querySelector('.snippet-content').textContent.replace(/\n/g, ' ').trim();
+            
+            results.push([title, path, score, snippet]);
+        });
+        
+        // Create CSV
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Dosya Adı,Dosya Yolu,Skor,İçerik\n";
+        results.forEach(row => {
+            csvContent += row.map(field => `"${field.replace(/"/g, '""')}"`).join(",") + "\n";
+        });
+        
+        // Download
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `arama_sonuclari_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('Dışa aktarma tamamlandı', 'success');
+    }
+
+    // Animate result cards on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const resultCards = document.querySelectorAll('.search-result-item');
+        resultCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.3s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+</script>
+{% endblock %}

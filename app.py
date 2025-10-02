@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify, make_response
+from flask import Flask, render_template, request, send_file, send_from_directory, redirect, url_for, session, flash, jsonify, make_response
 from flask_session import Session
 import os
 import time
@@ -33,7 +33,9 @@ def safe_path(path: str) -> str:
     return target
 
 # Initialize Flask app with session configuration
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_folder='frontend-react/dist',
+            static_url_path='')
 app.config['SECRET_KEY'] = 'deepsearch-mvp-secret-key-change-in-production'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = './config/sessions'
@@ -172,6 +174,10 @@ def add_security_headers(response):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Geçici olarak React frontend testi için bypass
+    if request.method == 'GET':
+        return send_from_directory('frontend-react/dist', 'index.html')
+    
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
@@ -306,10 +312,82 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
 def index():
-    current_user = get_current_user()
-    return render_template('index.html', current_user=current_user)
+    return send_from_directory('frontend-react/dist', 'index.html')
+
+# Serve React assets
+@app.route('/assets/<path:filename>')
+def assets(filename):
+    return send_from_directory('frontend-react/dist/assets', filename)
+
+# SPA fallback - catch all routes that don't match API endpoints
+@app.route('/<path:path>')
+def static_files(path):
+    # Check if it's an API endpoint
+    if (path.startswith('api/') or 
+        path.startswith('upload_file') or 
+        path.startswith('rag/') or 
+        path.startswith('analytics/') or
+        path == 'analytics' or
+        path.startswith('admin/') or
+        path.startswith('login') or
+        path.startswith('logout') or
+        path.startswith('register')):
+        # Let Flask handle API routes normally
+        return None
+    
+    # For all other paths, try to serve from React dist first
+    try:
+        return send_from_directory('frontend-react/dist', path)
+    except:
+        # If file not found, fallback to React index.html for client-side routing
+        return send_from_directory('frontend-react/dist', 'index.html')
+
+@app.route('/api/search', methods=['POST'])
+def api_search():
+    """React frontend için API search endpoint"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        search_type = data.get('search_type', 'semantic')
+        top_k = data.get('top_k', 10)
+        filters = data.get('filters', {})
+        
+        if not query:
+            return jsonify({'success': False, 'error': 'Query is required'}), 400
+        
+        # Perform search
+        results = search(
+            query=query,
+            index_path='./data/faiss.index',
+            meta_path='./data/meta.pkl',
+            top_k=top_k
+        )
+        
+        # Format results for React frontend
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'file_path': result.get('file_path', ''),
+                'file_name': os.path.basename(result.get('file_path', '')),
+                'chunk_text': result.get('text', ''),
+                'score': result.get('score', 0.0),
+                'metadata': {
+                    'page': result.get('page', None),
+                    'section': result.get('section', None)
+                }
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': formatted_results,
+            'query': query,
+            'search_type': search_type,
+            'total_results': len(formatted_results)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/search', methods=['POST'])
 @login_required
@@ -1401,9 +1479,24 @@ def optimize_system():
 
 # Analytics Endpoints
 @app.route('/analytics')
+def analytics_api():
+    """React frontend için analytics API endpoint"""
+    try:
+        # Simulated data for React frontend
+        return jsonify({
+            'total_documents': len(os.listdir('./data')) if os.path.exists('./data') else 0,
+            'indexed_files': 1 if os.path.exists('./data/faiss.index') else 0,
+            'processing_queue': 0,
+            'recent_searches': 5,
+            'system_health': 'good'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/analytics/dashboard')
 @admin_required
 def analytics_dashboard():
-    """Analytics dashboard"""
+    """Analytics dashboard for admin (HTML)"""
     try:
         if not analytics_system:
             flash('Analytics sistemi kullanılamıyor', 'error')

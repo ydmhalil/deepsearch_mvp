@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DeepSearch Enterprise{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons - Multiple CDN Fallbacks -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css';">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Unified Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='unified-style.css') }}">
+    
+    {% block custom_styles %}{% endblock %}
+</head>
+<body>
+    <!-- Unified Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-professional sticky-top">
+        <div class="container-fluid">
+            <!-- Brand -->
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+                <i class="bi bi-search me-2"></i>
+                <span class="fw-bold">DeepSearch Enterprise</span>
+                <span class="badge bg-light text-dark ms-2 fs-6">Professional</span>
+            </a>
+            
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Navigation Links -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> Ana Sayfa
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'rag_chat' %}active{% endif %}" href="{{ url_for('rag_chat') }}">
+                            <i class="bi bi-chat-dots"></i> AI Chat
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'upload_page' %}active{% endif %}" href="{{ url_for('upload_page') }}">
+                            <i class="bi bi-cloud-upload"></i> Dosya Yönetimi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'analytics' in request.endpoint %}active{% endif %}" href="{{ url_for('analytics_dashboard') }}">
+                            <i class="bi bi-graph-up"></i> Analitik Dashboard
+                        </a>
+                    </li>
+                    {% if current_user and current_user.role == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'security' in request.endpoint %}active{% endif %}" href="{{ url_for('security_dashboard') }}">
+                            <i class="bi bi-shield-check"></i> Güvenlik Merkezi
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- User Menu -->
+                <ul class="navbar-nav">
+                    {% if current_user %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle me-1"></i>
+                            <span class="d-none d-md-inline">{{ current_user.username }}</span>
+                            {% if current_user.role == 'admin' %}
+                            <span class="badge bg-warning text-dark ms-2">Admin</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person me-2"></i> Profil Ayarları</a></li>
+                            {% if current_user.role == 'admin' %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}"><i class="bi bi-people me-2"></i> Kullanıcı Yönetimi</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('kobi_dashboard') }}"><i class="bi bi-speedometer2 me-2"></i> KOBİ Dashboard</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i> Güvenli Çıkış</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">
+                            <i class="bi bi-box-arrow-in-right"></i> Giriş
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-unified alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                        {% elif category == 'error' or category == 'danger' %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                        {% endif %}
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="footer mt-auto py-4 bg-light border-top">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shield-check text-success me-2"></i>
+                        <strong class="text-primary">DeepSearch Enterprise</strong>
+                        <span class="text-muted ms-2">- Gelişmiş Doküman Arama ve Analiz Sistemi</span>
+                    </div>
+                    <small class="text-muted">Güvenli • Offline • AI Destekli • Kurumsal</small>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-flex align-items-center justify-content-md-end">
+                        <small class="text-muted me-3">© 2025 Professional Edition</small>
+                        <div class="status-indicator">
+                            <span class="badge bg-success">
+                                <i class="bi bi-wifi me-1"></i>Online
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Global JavaScript Functions -->
+    <script>
+        // Global utility functions
+        function showToast(message, type = 'info') {
+            const toastHtml = `
+                <div class="toast align-items-center text-bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            // Create toast container if it doesn't exist
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '9999';
+                document.body.appendChild(toastContainer);
+            }
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = toastContainer.lastElementChild;
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+        
+        // Loading spinner helper
+        function showSpinner(element) {
+            const originalContent = element.innerHTML;
+            element.innerHTML = '<span class="loading-spinner me-2"></span>Yükleniyor...';
+            element.disabled = true;
+            return originalContent;
+        }
+        
+        function hideSpinner(element, originalContent) {
+            element.innerHTML = originalContent;
+            element.disabled = false;
+        }
+        
+        // Format numbers
+        function formatNumber(num) {
+            return new Intl.NumberFormat('tr-TR').format(num);
+        }
+        
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Auto-refresh functionality for stats
+        function refreshStats() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    // Update stats elements if they exist
+                    const elements = {
+                        'totalDocs': data.total_documents,
+                        'totalSearches': data.total_searches,
+                        'avgResponseTime': data.avg_response_time ? data.avg_response_time.toFixed(1) + 's' : null,
+                        'systemUptime': data.uptime_days
+                    };
+                    
+                    Object.entries(elements).forEach(([id, value]) => {
+                        const element = document.getElementById(id);
+                        if (element && value !== null) {
+                            element.textContent = value;
+                        }
+                    });
+                })
+                .catch(error => console.log('Stats refresh error:', error));
+        }
+        
+        // Initialize auto-refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            // Refresh stats every 30 seconds
+            setInterval(refreshStats, 30000);
+            
+            // Add smooth scrolling to all anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block custom_scripts %}{% endblock %}
+</body>
+</html>

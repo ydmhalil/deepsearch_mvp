@@ -1,0 +1,43 @@
+ROKET MOTOR TEKNOLOJİLERİ VE YAKIT SİSTEMLERİ
+
+1. ROKET MOTOR TİPLERİ
+
+1.1 Katı Yakıtlı Roket Motorları
+- Basit tasarım ve yüksek güvenilirlik
+- Depolama kolaylığı ve uzun raf ömrü
+- Thrust kontrolü sınırlı
+- Savunma sanayinde yaygın kullanım
+
+1.2 Sıvı Yakıtlı Roket Motorları
+- Yüksek performans ve kontrol edilebilirlik
+- Karmaşık yakıt beslenme sistemi
+- Yeniden ateşlenebilme özelliği
+- Uzay araçlarında tercih edilen teknoloji
+
+2. YAKIT TİPLERİ
+
+2.1 Katı Yakıtlar
+- Amonyum Perklorat (AP) - Oksitleyici
+- Hidroksil Sonlandırılmış Polibutadien (HTPB) - Bağlayıcı
+- Alüminyum Tozu - Metal yakıt
+
+2.2 Sıvı Yakıtlar
+- LOX (Sıvı Oksijen) - Oksitleyici
+- RP-1 (Rafineli Kerosen) - Yakıt
+- Unsymmetrical Dimethylhydrazine (UDMH) - Hipergolic yakıt
+
+3. PERFORMANS PARAMETRELERİ
+
+- Spesifik İmpuls (Isp): Yakıt verimliliği ölçüsü
+- Thrust-to-Weight Ratio: Güç/ağırlık oranı
+- Yanma Basıncı: Motor iç basıncı
+- Nozzle Expansion Ratio: Nozul genişleme oranı
+
+4. GÜVENLİK PROTOKOLLERI
+
+- Yakıt depolama güvenlik önlemleri
+- Test sırasında personel güvenliği
+- Çevre koruma standartları
+- Acil durum müdahale prosedürleri
+
+Bu teknik doküman NATO stanlarına uygun olarak hazırlanmıştır.

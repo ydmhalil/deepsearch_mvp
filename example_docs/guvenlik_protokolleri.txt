@@ -1,0 +1,27 @@
+SAVUNMA SANAYİ GÜVENLİK PROTOKOLLARI
+
+1. GİRİŞ KONTROL SİSTEMLERİ
+Tüm personel güvenlik kartı ile giriş yapmak zorundadır.
+Misafir girişleri için escort eşliği zorunludur.
+
+2. BİLGİ GÜVENLİĞİ
+- Tüm bilgisayarlarda güçlü şifre politikası uygulanır
+- Gizli belgeler sadece yetkili personel tarafından erişilebilir
+- USB cihazları güvenlik onayı gerektirir
+
+3. FİZİKSEL GÜVENLİK
+- 7/24 kamera izleme sistemi aktiftir
+- Acil durum çıkışları her zaman açık tutulur
+- Yangın alarm sistemi düzenli test edilir
+
+4. PROJE GÜVENLİĞİ
+- Savunma projelerinde gizlilik anlaşması zorunludur
+- Proje dosyaları şifreli sunucularda saklanır
+- Toplantı kayıtları güvenli arşivleme yapılır
+
+5. PERSONEL EĞİTİMİ
+- Yıllık güvenlik eğitimi zorunludur
+- Siber güvenlik farkındalık eğitimleri verilir
+- Acil durum tatbikatları düzenlenir
+
+Bu protokoller ISO 27001 ve Türk Silahlı Kuvvetleri standartlarına uygun olarak hazırlanmıştır.

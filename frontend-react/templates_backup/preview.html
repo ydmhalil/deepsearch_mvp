@@ -1,0 +1,561 @@
+{% extends "base.html" %}
+
+{% block custom_styles %}
+<style>
+/* Preview-specific styles with unified design system */
+.preview-hero {
+    background: var(--gradient-primary);
+    padding: 2rem 0;
+    color: white;
+    margin-bottom: 2rem;
+}
+
+.preview-hero h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.document-meta {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.document-viewer {
+    background: var(--card-background);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-medium);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.document-viewer-header {
+    background: var(--background-light);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.viewer-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-info {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.viewer-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.control-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: var(--border-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.control-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.document-content {
+    max-height: 70vh;
+    overflow: auto;
+    padding: 0;
+}
+
+.document-text {
+    background: white;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2rem;
+    margin: 0;
+    border: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.stat-card-preview {
+    background: var(--card-background);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-medium);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: var(--transition-smooth);
+    border: 1px solid var(--border-color);
+}
+
+.stat-card-preview:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-large);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--primary-light);
+    border-radius: var(--border-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--primary-color);
+}
+
+.stat-content h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.stat-content p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.action-toolbar {
+    background: var(--card-background);
+    padding: 1rem;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-medium);
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.toolbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--success-color);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--border-radius-md);
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+    box-shadow: var(--shadow-large);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media print {
+    .navbar,
+    .action-toolbar,
+    .stats-grid,
+    .footer {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-top: 0 !important;
+    }
+    
+    .document-text {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .preview-hero {
+        text-align: center;
+    }
+    
+    .preview-actions {
+        justify-content: center;
+    }
+    
+    .document-meta {
+        justify-content: center;
+    }
+    
+    .viewer-toolbar {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    
+    .viewer-controls {
+        justify-content: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .toolbar-content {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<div class="preview-hero">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1>
+                    <i class="bi bi-file-earmark-text"></i>
+                    Belge Önizleme
+                </h1>
+                <div class="document-meta">
+                    <span class="meta-item">
+                        <i class="bi bi-file"></i>
+                        {{ file_name }}
+                    </span>
+                    <span class="meta-item">
+                        <i class="bi bi-calendar"></i>
+                        Önizleme: {{ moment().format('DD.MM.YYYY HH:mm') if moment else 'Şimdi' }}
+                    </span>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="preview-actions">
+                    <button onclick="printDocument()" class="btn btn-light">
+                        <i class="bi bi-printer"></i>
+                        Yazdır
+                    </button>
+                    <button onclick="copyContent()" class="btn btn-light">
+                        <i class="bi bi-clipboard"></i>
+                        Kopyala
+                    </button>
+                    <a href="javascript:history.back()" class="btn btn-outline-light">
+                        <i class="bi bi-arrow-left"></i>
+                        Geri Dön
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Action Toolbar -->
+    <div class="action-toolbar">
+        <div class="toolbar-content">
+            <div class="file-info">
+                <i class="bi bi-file-earmark-text"></i>
+                {{ file_name }}
+            </div>
+            <div class="viewer-controls">
+                <button class="control-btn" onclick="increaseFont()" title="Yazı Boyutunu Artır">
+                    <i class="bi bi-zoom-in"></i>
+                </button>
+                <button class="control-btn" onclick="decreaseFont()" title="Yazı Boyutunu Azalt">
+                    <i class="bi bi-zoom-out"></i>
+                </button>
+                <button class="control-btn" onclick="toggleWrap()" title="Satır Kaydırmayı Aç/Kapat">
+                    <i class="bi bi-text-wrap"></i>
+                </button>
+                <button class="control-btn" onclick="printDocument()" title="Yazdır">
+                    <i class="bi bi-printer"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="document-viewer">
+                <div class="document-content">
+                    <pre id="documentText" class="document-text">{{ content }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card-preview">
+            <div class="stat-icon">
+                <i class="bi bi-file-text"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="charCount">-</h3>
+                <p>Karakter Sayısı</p>
+            </div>
+        </div>
+        <div class="stat-card-preview">
+            <div class="stat-icon">
+                <i class="bi bi-list-ol"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="lineCount">-</h3>
+                <p>Satır Sayısı</p>
+            </div>
+        </div>
+        <div class="stat-card-preview">
+            <div class="stat-icon">
+                <i class="bi bi-fonts"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="wordCount">-</h3>
+                <p>Kelime Sayısı</p>
+            </div>
+        </div>
+        <div class="stat-card-preview">
+            <div class="stat-icon">
+                <i class="bi bi-file-binary"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="fileSize">-</h3>
+                <p>Dosya Boyutu</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_scripts %}
+<script>
+// Document viewer functionality with unified design system
+let fontSize = 14;
+let wrapEnabled = true;
+
+function printDocument() {
+    window.print();
+}
+
+function copyContent() {
+    const content = document.getElementById('documentText').textContent;
+    navigator.clipboard.writeText(content).then(function() {
+        showToast('Belge içeriği panoya kopyalandı', 'success');
+    }).catch(function() {
+        showToast('Kopyalama işlemi başarısız', 'error');
+    });
+}
+
+function increaseFont() {
+    if (fontSize < 24) {
+        fontSize += 2;
+        document.getElementById('documentText').style.fontSize = fontSize + 'px';
+        showToast(`Yazı boyutu: ${fontSize}px`, 'info');
+    }
+}
+
+function decreaseFont() {
+    if (fontSize > 10) {
+        fontSize -= 2;
+        document.getElementById('documentText').style.fontSize = fontSize + 'px';
+        showToast(`Yazı boyutu: ${fontSize}px`, 'info');
+    }
+}
+
+function toggleWrap() {
+    const element = document.getElementById('documentText');
+    wrapEnabled = !wrapEnabled;
+    element.style.whiteSpace = wrapEnabled ? 'pre-wrap' : 'pre';
+    
+    const wrapIcon = document.querySelector('[onclick="toggleWrap()"] i');
+    if (wrapEnabled) {
+        wrapIcon.className = 'bi bi-text-wrap';
+        showToast('Satır kaydırma açık', 'info');
+    } else {
+        wrapIcon.className = 'bi bi-text-left';
+        showToast('Satır kaydırma kapalı', 'info');
+    }
+}
+
+// Calculate and display document statistics
+function calculateStats() {
+    const content = document.getElementById('documentText').textContent;
+    
+    // Character count
+    const charCount = content.length;
+    document.getElementById('charCount').textContent = charCount.toLocaleString('tr-TR');
+    
+    // Line count
+    const lineCount = content.split('\n').length;
+    document.getElementById('lineCount').textContent = lineCount.toLocaleString('tr-TR');
+    
+    // Word count
+    const words = content.trim().split(/\s+/).filter(word => word.length > 0);
+    const wordCount = words.length;
+    document.getElementById('wordCount').textContent = wordCount.toLocaleString('tr-TR');
+    
+    // File size (approximate)
+    const sizeInBytes = new Blob([content]).size;
+    let sizeText;
+    if (sizeInBytes < 1024) {
+        sizeText = sizeInBytes + ' B';
+    } else if (sizeInBytes < 1024 * 1024) {
+        sizeText = (sizeInBytes / 1024).toFixed(1) + ' KB';
+    } else {
+        sizeText = (sizeInBytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    document.getElementById('fileSize').textContent = sizeText;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey) {
+        switch(e.key) {
+            case '+':
+            case '=':
+                e.preventDefault();
+                increaseFont();
+                break;
+            case '-':
+                e.preventDefault();
+                decreaseFont();
+                break;
+            case 'p':
+                e.preventDefault();
+                printDocument();
+                break;
+            case 'c':
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    copyContent();
+                }
+                break;
+        }
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    calculateStats();
+    
+    // Set initial font size
+    document.getElementById('documentText').style.fontSize = fontSize + 'px';
+    
+    // Add loading animation for stats
+    const statCards = document.querySelectorAll('.stat-card-preview');
+    statCards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.3s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 100);
+    });
+    
+    // Add smooth scroll to content
+    const documentContent = document.querySelector('.document-content');
+    if (documentContent) {
+        documentContent.style.scrollBehavior = 'smooth';
+    }
+});
+
+// Add scroll to top functionality
+function scrollToTop() {
+    const documentContent = document.querySelector('.document-content');
+    if (documentContent) {
+        documentContent.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Add scroll to top button when scrolling
+let scrollToTopBtn;
+document.addEventListener('DOMContentLoaded', function() {
+    const documentContent = document.querySelector('.document-content');
+    
+    if (documentContent) {
+        // Create scroll to top button
+        scrollToTopBtn = document.createElement('button');
+        scrollToTopBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
+        scrollToTopBtn.className = 'btn btn-primary position-fixed';
+        scrollToTopBtn.style.cssText = `
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: none;
+            transition: all 0.3s ease;
+        `;
+        scrollToTopBtn.onclick = scrollToTop;
+        document.body.appendChild(scrollToTopBtn);
+        
+        // Show/hide scroll to top button
+        documentContent.addEventListener('scroll', function() {
+            if (documentContent.scrollTop > 300) {
+                scrollToTopBtn.style.display = 'block';
+            } else {
+                scrollToTopBtn.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
