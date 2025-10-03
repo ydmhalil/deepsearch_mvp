@@ -5,6 +5,7 @@ import Upload from './pages/Upload';
 import Search from './pages/Search';
 import Chat from './pages/Chat';
 import Analytics from './pages/Analytics';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Upload, MessageSquare, BarChart3, Shield } from 'lucide-react';
+import { Search, Upload, MessageSquare, BarChart3, Shield, Settings } from 'lucide-react';
 
 export default function Header() {
   const location = useLocation();
@@ -10,6 +10,7 @@ export default function Header() {
     { path: '/search', label: 'Ara', icon: Search },
     { path: '/chat', label: 'RAG Chat', icon: MessageSquare },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/admin', label: 'Admin', icon: Settings },
   ];
 
   const isActive = (path: string) => location.pathname === path;

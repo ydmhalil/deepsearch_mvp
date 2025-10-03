@@ -7,6 +7,7 @@ export interface Document {
   upload_date: string;
   status: 'pending' | 'processing' | 'indexed' | 'error';
   page_count?: number;
+  classification?: DocumentClassification;
 }
 
 export interface KeywordMatch {

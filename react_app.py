@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
@@ -6,6 +6,7 @@ import re
 from typing import List, Dict, Tuple
 from classification_manager import classification_manager
 from upload_manager import upload_manager
+from init_database import get_db_connection
 
 def find_keyword_matches(text: str, query: str) -> List[Dict]:
     """Metinde arama kelimelerinin geçtiği bölümleri bulur"""
@@ -458,6 +459,72 @@ def delete_document(document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/documents/<int:document_id>/download')
+def download_document(document_id):
+    """Download a document"""
+    try:
+        # Get document info from database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM documents WHERE id = ?', (document_id,))
+        document = cursor.fetchone()
+        conn.close()
+        
+        if not document:
+            return jsonify({'success': False, 'error': 'Document not found'}), 404
+        
+        file_path = document['file_path']
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': 'File not found on disk'}), 404
+        
+        return send_file(file_path, as_attachment=True, download_name=document['filename'])
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/document/content')
+def get_document_content():
+    """Get document content for preview"""
+    try:
+        file_path = request.args.get('path')
+        if not file_path:
+            return jsonify({'success': False, 'error': 'File path required'}), 400
+        
+        # Security check
+        if not os.path.exists(file_path) or '..' in file_path:
+            return jsonify({'success': False, 'error': 'Invalid file path'}), 400
+        
+        # Extract content using utils
+        try:
+            from utils import extract_text
+            content = extract_text(file_path)
+        except ImportError:
+            # Fallback for text files
+            if file_path.endswith('.txt'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                content = "Content preview not available for this file type."
+        
+        # Get file metadata
+        file_size = os.path.getsize(file_path)
+        word_count = len(content.split()) if content else 0
+        char_count = len(content) if content else 0
+        
+        return jsonify({
+            'success': True,
+            'content': content[:50000],  # Limit content size
+            'metadata': {
+                'word_count': word_count,
+                'char_count': char_count,
+                'file_size': file_size,
+                'file_type': os.path.splitext(file_path)[1].lower()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/rag/query', methods=['POST'])
 def rag_query():
     """RAG Chat API for React frontend"""
@@ -496,6 +563,27 @@ def get_categories():
         return jsonify({
             'success': True,
             'categories': categories
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/classification/categories', methods=['POST'])
+def create_category():
+    """Create a new professional category"""
+    try:
+        data = request.get_json()
+        category_id = classification_manager.create_professional_category(
+            name=data.get('name'),
+            description=data.get('description', ''),
+            color_code=data.get('color_code', '#667eea'),
+            icon=data.get('icon', 'folder'),
+            created_by=1  # Admin user
+        )
+        
+        return jsonify({
+            'success': True,
+            'category_id': category_id,
+            'message': 'Category created successfully'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

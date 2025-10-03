@@ -1553,6 +1553,518 @@ def user_analytics(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ================================
+# User Management API Routes
+# ================================
+
+@app.route('/api/users', methods=['GET'])
+@admin_required
+def get_users():
+    """Get all users"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, username, email, full_name, role, is_active, created_at 
+                FROM users 
+                ORDER BY created_at DESC
+            """)
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': row[0],
+                    'username': row[1],
+                    'email': row[2],
+                    'full_name': row[3],
+                    'role': row[4],
+                    'is_active': bool(row[5]),
+                    'created_at': row[6]
+                })
+            
+            return jsonify({'users': users})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['POST'])
+@admin_required
+def create_user():
+    """Create new user"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['username', 'email', 'full_name', 'password', 'role']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        # Check if username/email already exists
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", 
+                         (data['username'], data['email']))
+            if cursor.fetchone():
+                return jsonify({'error': 'Username or email already exists'}), 400
+            
+            # Create user with hash_password from user_manager
+            success, user_id = user_manager.create_user(
+                data['username'],
+                data['password'],
+                data['email'],
+                data['full_name'],
+                data['role'],
+                data.get('is_active', True)
+            )
+            
+            if success:
+                # Handle permissions if provided
+                if data.get('permissions'):
+                    for perm in data['permissions']:
+                        if perm.get('category_id'):
+                            cursor.execute("""
+                                INSERT INTO user_category_permissions 
+                                (user_id, category_id, permission_type, expires_at)
+                                VALUES (?, ?, ?, ?)
+                            """, (user_id, perm['category_id'], perm['permission_type'], 
+                                 perm.get('expires_at')))
+                        elif perm.get('security_level_id'):
+                            cursor.execute("""
+                                INSERT INTO user_security_permissions 
+                                (user_id, security_level_id, permission_type, expires_at)
+                                VALUES (?, ?, ?, ?)
+                            """, (user_id, perm['security_level_id'], perm['permission_type'], 
+                                 perm.get('expires_at')))
+                    conn.commit()
+                
+                return jsonify({'success': True, 'user_id': user_id})
+            else:
+                return jsonify({'error': 'Failed to create user'}), 500
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """Update user"""
+    try:
+        data = request.get_json()
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Update basic user info
+            cursor.execute("""
+                UPDATE users 
+                SET email = ?, full_name = ?, role = ?, is_active = ?
+                WHERE id = ?
+            """, (data['email'], data['full_name'], data['role'], 
+                 data.get('is_active', True), user_id))
+            
+            # Update permissions if provided
+            if data.get('permissions'):
+                # Clear existing permissions
+                cursor.execute("DELETE FROM user_category_permissions WHERE user_id = ?", (user_id,))
+                cursor.execute("DELETE FROM user_security_permissions WHERE user_id = ?", (user_id,))
+                
+                # Add new permissions
+                for perm in data['permissions']:
+                    if perm.get('category_id'):
+                        cursor.execute("""
+                            INSERT INTO user_category_permissions 
+                            (user_id, category_id, permission_type, expires_at)
+                            VALUES (?, ?, ?, ?)
+                        """, (user_id, perm['category_id'], perm['permission_type'], 
+                             perm.get('expires_at')))
+                    elif perm.get('security_level_id'):
+                        cursor.execute("""
+                            INSERT INTO user_security_permissions 
+                            (user_id, security_level_id, permission_type, expires_at)
+                            VALUES (?, ?, ?, ?)
+                        """, (user_id, perm['security_level_id'], perm['permission_type'], 
+                             perm.get('expires_at')))
+            
+            conn.commit()
+            return jsonify({'success': True})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classification/user-permissions/<int:user_id>')
+@admin_required
+def get_user_permissions(user_id):
+    """Get user permissions"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get category permissions
+            cursor.execute("""
+                SELECT ucp.category_id, ucp.permission_type, ucp.expires_at, pc.name
+                FROM user_category_permissions ucp
+                JOIN professional_categories pc ON ucp.category_id = pc.id
+                WHERE ucp.user_id = ?
+            """, (user_id,))
+            category_permissions = []
+            for row in cursor.fetchall():
+                category_permissions.append({
+                    'category_id': row[0],
+                    'permission_type': row[1],
+                    'expires_at': row[2],
+                    'category_name': row[3]
+                })
+            
+            # Get security level permissions
+            cursor.execute("""
+                SELECT usp.security_level_id, usp.permission_type, usp.expires_at, sl.name
+                FROM user_security_permissions usp
+                JOIN security_levels sl ON usp.security_level_id = sl.id
+                WHERE usp.user_id = ?
+            """, (user_id,))
+            security_permissions = []
+            for row in cursor.fetchall():
+                security_permissions.append({
+                    'security_level_id': row[0],
+                    'permission_type': row[1],
+                    'expires_at': row[2],
+                    'security_level_name': row[3]
+                })
+            
+            return jsonify({
+                'permissions': {
+                    'categories': category_permissions,
+                    'security_levels': security_permissions
+                }
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ================================
+# Security Settings API Routes
+# ================================
+
+@app.route('/api/security/settings', methods=['GET'])
+@admin_required
+def get_security_settings():
+    """Get security settings"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT setting_key, setting_value, category FROM security_settings")
+            settings = []
+            for row in cursor.fetchall():
+                settings.append({
+                    'key': row[0],
+                    'value': row[1],
+                    'category': row[2]
+                })
+            
+            return jsonify({'settings': settings})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/settings', methods=['PUT'])
+@admin_required
+def update_security_settings():
+    """Update security settings"""
+    try:
+        data = request.get_json()
+        settings = data.get('settings', [])
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            for setting in settings:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO security_settings 
+                    (setting_key, setting_value, category, updated_at, updated_by)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (setting['key'], str(setting['value']), setting['category'], 
+                     datetime.now().isoformat(), get_current_user()['id']))
+            
+            conn.commit()
+            
+            # Log security settings change
+            cursor.execute("""
+                INSERT INTO audit_logs 
+                (user_id, action, resource_type, details, ip_address, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (get_current_user()['id'], 'security_settings_updated', 'security_settings',
+                 f'Updated {len(settings)} security settings', 
+                 request.remote_addr, datetime.now().isoformat()))
+            conn.commit()
+            
+            return jsonify({'success': True})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/security/audit-logs')
+@admin_required  
+def get_audit_logs():
+    """Get audit logs"""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT al.id, al.user_id, u.username, al.action, al.resource_type,
+                       al.resource_id, al.details, al.ip_address, al.timestamp
+                FROM audit_logs al
+                LEFT JOIN users u ON al.user_id = u.id
+                ORDER BY al.timestamp DESC
+                LIMIT ?
+            """, (limit,))
+            
+            logs = []
+            for row in cursor.fetchall():
+                logs.append({
+                    'id': row[0],
+                    'user_id': row[1],
+                    'username': row[2] or 'Unknown',
+                    'action': row[3],
+                    'resource_type': row[4],
+                    'resource_id': row[5],
+                    'details': row[6],
+                    'ip_address': row[7],
+                    'timestamp': row[8]
+                })
+            
+            return jsonify({'logs': logs})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ================================
+# Category Management API Routes
+# ================================
+
+@app.route('/api/classification/categories', methods=['GET'])
+@admin_required
+def get_categories():
+    """Get all categories"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name, description, color_code, icon_name, is_active, created_at, updated_at
+                FROM professional_categories 
+                ORDER BY name
+            """)
+            categories = []
+            for row in cursor.fetchall():
+                categories.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'description': row[2],
+                    'color_code': row[3],
+                    'icon_name': row[4],
+                    'is_active': bool(row[5]),
+                    'created_at': row[6],
+                    'updated_at': row[7]
+                })
+            
+            return jsonify({'categories': categories})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classification/categories', methods=['POST'])
+@admin_required
+def create_category():
+    """Create new category"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('name'):
+            return jsonify({'error': 'Category name is required'}), 400
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check if category name already exists
+            cursor.execute("SELECT id FROM professional_categories WHERE name = ?", (data['name'],))
+            if cursor.fetchone():
+                return jsonify({'error': 'Category name already exists'}), 400
+            
+            # Insert new category
+            cursor.execute("""
+                INSERT INTO professional_categories 
+                (name, description, color_code, icon_name, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data['name'],
+                data.get('description', ''),
+                data.get('color_code', '#6366f1'),
+                data.get('icon', 'folder'),
+                data.get('is_active', True),
+                datetime.now().isoformat(),
+                datetime.now().isoformat()
+            ))
+            
+            category_id = cursor.lastrowid
+            conn.commit()
+            
+            # Log category creation
+            cursor.execute("""
+                INSERT INTO audit_logs 
+                (user_id, action, resource_type, resource_id, details, ip_address, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (get_current_user()['id'], 'category_created', 'professional_category',
+                 category_id, f'Created category: {data["name"]}', 
+                 request.remote_addr, datetime.now().isoformat()))
+            conn.commit()
+            
+            return jsonify({'success': True, 'category_id': category_id})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classification/categories/<int:category_id>', methods=['PUT'])
+@admin_required
+def update_category(category_id):
+    """Update category"""
+    try:
+        data = request.get_json()
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE professional_categories 
+                SET name = ?, description = ?, color_code = ?, icon_name = ?, 
+                    is_active = ?, updated_at = ?
+                WHERE id = ?
+            """, (data['name'], data['description'], data['color_code'], 
+                 data['icon_name'], data.get('is_active', True), 
+                 datetime.now().isoformat(), category_id))
+            
+            conn.commit()
+            
+            # Get updated category
+            cursor.execute("SELECT * FROM professional_categories WHERE id = ?", (category_id,))
+            row = cursor.fetchone()
+            if row:
+                category = {
+                    'id': row[0],
+                    'name': row[1],
+                    'description': row[2],
+                    'color_code': row[3],
+                    'icon_name': row[4],
+                    'is_active': bool(row[5]),
+                    'created_at': row[6],
+                    'updated_at': row[7]
+                }
+                return jsonify({'category': category})
+            
+            return jsonify({'error': 'Category not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classification/categories/<int:category_id>', methods=['DELETE'])
+@admin_required
+def delete_category(category_id):
+    """Delete category"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Check if category has documents
+            cursor.execute("""
+                SELECT COUNT(*) FROM document_classifications 
+                WHERE category_id = ?
+            """, (category_id,))
+            doc_count = cursor.fetchone()[0]
+            
+            if doc_count > 0:
+                return jsonify({'error': f'Cannot delete category with {doc_count} documents'}), 400
+            
+            # Delete category
+            cursor.execute("DELETE FROM professional_categories WHERE id = ?", (category_id,))
+            conn.commit()
+            
+            return jsonify({'success': True})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/classification/categories/<int:category_id>/stats')
+@admin_required
+def get_category_stats(category_id):
+    """Get category statistics"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Document count
+            cursor.execute("""
+                SELECT COUNT(*) FROM document_classifications 
+                WHERE category_id = ?
+            """, (category_id,))
+            document_count = cursor.fetchone()[0]
+            
+            # Recent activity (last 30 days)
+            cursor.execute("""
+                SELECT COUNT(*) FROM document_classifications dc
+                JOIN documents d ON dc.document_id = d.id
+                WHERE dc.category_id = ? AND d.upload_date >= date('now', '-30 days')
+            """, (category_id,))
+            recent_activity = cursor.fetchone()[0]
+            
+            # Usage by users
+            cursor.execute("""
+                SELECT COUNT(DISTINCT d.uploaded_by) FROM document_classifications dc
+                JOIN documents d ON dc.document_id = d.id
+                WHERE dc.category_id = ?
+            """, (category_id,))
+            unique_users = cursor.fetchone()[0]
+            
+            return jsonify({
+                'stats': {
+                    'document_count': document_count,
+                    'recent_activity': recent_activity,
+                    'unique_users': unique_users
+                }
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ================================
+# Security Levels API Routes
+# ================================
+
+@app.route('/api/classification/security-levels', methods=['GET'])
+@admin_required
+def get_security_levels():
+    """Get all security levels"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name, level_number, description, color_code, access_requirements, is_active, created_at
+                FROM security_levels 
+                ORDER BY level_number
+            """)
+            security_levels = []
+            for row in cursor.fetchall():
+                security_levels.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'level_number': row[2],
+                    'description': row[3],
+                    'color_code': row[4],
+                    'access_requirements': row[5],
+                    'is_active': bool(row[6]),
+                    'created_at': row[7]
+                })
+            
+            return jsonify({'security_levels': security_levels})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize RAG System
     initialize_rag_system()
