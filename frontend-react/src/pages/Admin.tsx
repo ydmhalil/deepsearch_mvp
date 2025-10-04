@@ -18,7 +18,8 @@ import {
   UserCheck,
   CheckSquare,
   Square,
-  MoreHorizontal
+  MoreHorizontal,
+  XCircle
 } from 'lucide-react';
 import { api } from '../utils/api';
 import type { Document, ProfessionalCategory, SecurityLevel } from '../types';
@@ -29,6 +30,8 @@ import BulkActionsModal from '../components/BulkActionsModal';
 import EditCategoryModal from '../components/EditCategoryModal';
 import UserManagementModal from '../components/UserManagementModal';
 import SecuritySettingsModal from '../components/SecuritySettingsModal';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { useToast } from '../components/ToastProvider';
 
 interface AdminStats {
   total_documents: number;
@@ -51,6 +54,7 @@ export default function Admin() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [categories, setCategories] = useState<ProfessionalCategory[]>([]);
   const [securityLevels, setSecurityLevels] = useState<SecurityLevel[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +74,18 @@ export default function Admin() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isCreateUser, setIsCreateUser] = useState(false);
   
+  // Confirmation modal states
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'danger' | 'warning' | 'info';
+    action: () => void;
+  } | null>(null);
+  
+  // Toast hook
+  const { showSuccess, showError, showWarning } = useToast();
+  
   // Selection states
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -78,7 +94,7 @@ export default function Admin() {
     { id: 'overview', name: 'Genel Bakış', icon: BarChart3 },
     { id: 'documents', name: 'Belge Yönetimi', icon: FileText, count: documents.length },
     { id: 'categories', name: 'Kategori Yönetimi', icon: Settings, count: categories.length },
-    { id: 'users', name: 'Kullanıcı Yönetimi', icon: Users },
+    { id: 'users', name: 'Kullanıcı Yönetimi', icon: Users, count: users.length },
     { id: 'security', name: 'Güvenlik Ayarları', icon: Shield },
   ];
 
@@ -89,23 +105,39 @@ export default function Admin() {
   const loadAdminData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading admin data...');
       
       // Load all admin data in parallel with error handling
       const [
         documentsRes,
         categoriesRes,
         securityLevelsRes,
+        usersRes,
         analyticsRes
       ] = await Promise.all([
         api.getDocuments().catch(err => { console.warn('Documents fetch failed:', err); return []; }),
-        fetch('http://localhost:5001/api/classification/categories').then(res => res.json()).catch(err => { console.warn('Categories fetch failed:', err); return { categories: [] }; }),
-        fetch('http://localhost:5001/api/classification/security-levels').then(res => res.json()).catch(err => { console.warn('Security levels fetch failed:', err); return { security_levels: [] }; }),
-        fetch('http://localhost:5001/analytics').then(res => res.json()).catch(err => { console.warn('Analytics fetch failed:', err); return {}; })
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/categories`).then(res => res.json()).catch(err => { console.warn('Categories fetch failed:', err); return { categories: [] }; }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/security-levels`).then(res => res.json()).catch(err => { console.warn('Security levels fetch failed:', err); return { security_levels: [] }; }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users`).then(res => res.json()).catch(err => { console.warn('Users fetch failed:', err); return { users: [] }; }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/analytics`).then(res => res.json()).catch(err => { console.warn('Analytics fetch failed:', err); return {}; })
       ]);
 
-      setDocuments(documentsRes);
+      console.log('📊 Raw API responses:', { documentsRes, categoriesRes, securityLevelsRes, usersRes, analyticsRes });
+
+      // Ensure documentsRes is an array
+      const safeDocuments = Array.isArray(documentsRes) ? documentsRes : [];
+      
+      setDocuments(safeDocuments);
       setCategories(categoriesRes.categories || []);
       setSecurityLevels(securityLevelsRes.security_levels || []);
+      setUsers(usersRes.users || []);
+      
+      console.log('✅ Data set:', { 
+        documents: safeDocuments?.length || 0, 
+        categories: categoriesRes?.categories?.length || 0, 
+        securityLevels: securityLevelsRes?.security_levels?.length || 0,
+        users: usersRes?.users?.length || 0
+      });
       
       // Create admin stats from analytics data
       if (analyticsRes) {
@@ -147,7 +179,7 @@ export default function Admin() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5001/api/classification/categories/${categoryId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/categories/${categoryId}`, {
         method: 'DELETE'
       });
 
@@ -228,6 +260,110 @@ export default function Admin() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // User management functions
+  const handleApproveUser = async (userId: number) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${userId}/approve`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Reload users data
+        loadAdminData();
+        showSuccess('Başarılı!', 'Kullanıcı rolü başarıyla onaylandı');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'User approval failed');
+      }
+    } catch (error) {
+      console.error('Failed to approve user:', error);
+      showError('Hata!', 'Kullanıcı onaylama işlemi başarısız oldu');
+    }
+  };
+
+  const handleRejectUser = async (userId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5001/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'inactive' }),
+      });
+
+      if (response.ok) {
+        // Reload users data
+        loadAdminData();
+        showWarning('Reddedildi', 'Kullanıcı talebi reddedildi');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'User rejection failed');
+      }
+    } catch (error) {
+      console.error('Failed to reject user:', error);
+      showError('Hata!', 'Kullanıcı reddetme işlemi başarısız oldu');
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      const response = await fetch(`http://localhost:5001/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        // Reload users data
+        loadAdminData();
+        showSuccess(
+          'Durum Güncellendi', 
+          `Kullanıcı durumu ${newStatus === 'active' ? 'aktif' : 'pasif'} olarak güncellendi`
+        );
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'User status update failed');
+      }
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      showError('Hata!', 'Kullanıcı durumu güncelleme işlemi başarısız oldu');
+    }
+  };
+
+  const confirmApproveUser = (userId: number, username: string, requestedRole: string) => {
+    setConfirmationData({
+      title: 'Kullanıcı Onaylama',
+      message: `${username} kullanıcısını ${requestedRole} rolü ile onaylamak istediğinizden emin misiniz?`,
+      type: 'success',
+      action: () => handleApproveUser(userId)
+    });
+    setShowConfirmation(true);
+  };
+
+  const confirmRejectUser = (userId: number, username: string) => {
+    setConfirmationData({
+      title: 'Kullanıcı Reddetme',
+      message: `${username} kullanıcısının rol talebini reddetmek istediğinizden emin misiniz?`,
+      type: 'warning',
+      action: () => handleRejectUser(userId)
+    });
+    setShowConfirmation(true);
+  };
+
+  const confirmToggleUserStatus = (userId: number, username: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'pasif' : 'aktif';
+    setConfirmationData({
+      title: 'Kullanıcı Durumu Değiştirme',
+      message: `${username} kullanıcısının durumunu ${newStatus} yapmak istediğinizden emin misiniz?`,
+      type: currentStatus === 'active' ? 'warning' : 'info',
+      action: () => handleToggleUserStatus(userId, currentStatus)
+    });
+    setShowConfirmation(true);
   };
 
   if (loading) {
@@ -647,23 +783,191 @@ export default function Admin() {
           <div className="card p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">Kullanıcı Yönetimi</h3>
-              <button 
-                onClick={() => {
-                  setSelectedUser(null);
-                  setIsCreateUser(true);
-                  setShowUserManagementModal(true);
-                }}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Yeni Kullanıcı
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Kullanıcı ara..."
+                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setIsCreateUser(true);
+                    setShowUserManagementModal(true);
+                  }}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Yeni Kullanıcı
+                </button>
+              </div>
             </div>
             
-            <div className="text-center py-12 text-gray-500">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-lg font-medium mb-2">Kullanıcı Listesi</p>
-              <p>Kullanıcı listesi burada görünecek</p>
+            {/* Pending Users Section */}
+            {users.filter(user => user.status === 'pending').length > 0 && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                  <h4 className="font-medium text-yellow-900">Onay Bekleyen Kullanıcılar</h4>
+                  <span className="px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs">
+                    {users.filter(user => user.status === 'pending').length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {users.filter(user => user.status === 'pending').map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                          <Users className="w-4 h-4 text-yellow-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{user.username}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                          {user.requested_role} rolü talep ediyor
+                        </span>
+                        <button
+                          onClick={() => confirmApproveUser(user.id, user.username, user.requested_role)}
+                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center gap-1"
+                        >
+                          <CheckCircle className="w-3 h-3" />
+                          Onayla
+                        </button>
+                        <button
+                          onClick={() => confirmRejectUser(user.id, user.username)}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm flex items-center gap-1"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          Reddet
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Users Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kullanıcı
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Rol
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Durum
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kayıt Tarihi
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      İşlemler
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users
+                    .filter(user => 
+                      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map(user => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Users className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.username}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs ${ 
+                          user.role === 'admin' 
+                            ? 'bg-red-100 text-red-800'
+                            : user.role === 'manager'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {user.role === 'admin' ? 'Admin' : user.role === 'manager' ? 'Yönetici' : 'Kullanıcı'}
+                        </span>
+                        {user.requested_role && user.requested_role !== user.role && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {user.requested_role} talep ediyor
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          user.status === 'active' 
+                            ? 'bg-green-100 text-green-800'
+                            : user.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.status === 'active' ? 'Aktif' : user.status === 'pending' ? 'Beklemede' : 'Pasif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(user.created_at).toLocaleDateString('tr-TR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setIsCreateUser(false);
+                              setShowUserManagementModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => confirmToggleUserStatus(user.id, user.username, user.status)}
+                            className={`text-sm ${
+                              user.status === 'active' 
+                                ? 'text-red-600 hover:text-red-900' 
+                                : 'text-green-600 hover:text-green-900'
+                            }`}
+                          >
+                            {user.status === 'active' ? 'Pasifleştir' : 'Aktifleştir'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {users.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>Henüz kullanıcı bulunmuyor</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -795,6 +1099,23 @@ export default function Admin() {
         isOpen={showSecuritySettingsModal}
         onClose={() => setShowSecuritySettingsModal(false)}
       />
+      
+      {/* Confirmation Modal */}
+      {confirmationData && (
+        <ConfirmationModal
+          isOpen={showConfirmation}
+          onClose={() => {
+            setShowConfirmation(false);
+            setConfirmationData(null);
+          }}
+          onConfirm={confirmationData.action}
+          title={confirmationData.title}
+          message={confirmationData.message}
+          type={confirmationData.type}
+          confirmText={confirmationData.type === 'danger' ? 'Sil' : 'Onayla'}
+          cancelText="İptal"
+        />
+      )}
     </div>
   );
 }

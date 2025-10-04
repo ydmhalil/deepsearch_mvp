@@ -740,6 +740,65 @@ def check_document_access(user_id, document_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Authentication endpoints
+@app.route('/api/login', methods=['POST'])
+def login():
+    """User login"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({'success': False, 'message': 'Username and password required'}), 400
+        
+        conn = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check user in database with Werkzeug password hash
+            cursor.execute("""
+                SELECT id, username, email, role, is_active, password_hash
+                FROM users 
+                WHERE username = ?
+            """, (username,))
+            
+            user = cursor.fetchone()
+            
+            if user and user[4]:  # is_active check
+                # Check password using Werkzeug
+                from werkzeug.security import check_password_hash
+                if check_password_hash(user[5], password):  # user[5] is password_hash
+                    # Generate simple token (in production use JWT)
+                    import secrets
+                    token = secrets.token_urlsafe(32)
+                    
+                    return jsonify({
+                        'success': True,
+                        'token': token,
+                        'user': {
+                            'id': user[0],
+                            'username': user[1],
+                            'email': user[2],
+                            'role': user[3]
+                        }
+                    })
+                else:
+                    return jsonify({'success': False, 'message': 'Invalid credentials or inactive account'}), 401
+            else:
+                return jsonify({'success': False, 'message': 'Invalid credentials or inactive account'}), 401
+                
+        except Exception as e:
+            print(f"🔍 Login error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            if conn:
+                conn.close()
+                
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # SPA fallback - catch all routes for React Router
 @app.route('/<path:path>')
 def static_files(path):

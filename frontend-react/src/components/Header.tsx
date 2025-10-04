@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Search, Upload, MessageSquare, BarChart3, Shield, Settings } from 'lucide-react';
+import { Search, Upload, MessageSquare, BarChart3, Shield, Settings, LogOut, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Header() {
   const location = useLocation();
+  const { isAuthenticated, user, logout } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Ana Sayfa', icon: Shield },
@@ -10,10 +12,25 @@ export default function Header() {
     { path: '/search', label: 'Ara', icon: Search },
     { path: '/chat', label: 'RAG Chat', icon: MessageSquare },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/admin', label: 'Admin', icon: Settings },
+    { path: '/admin', label: 'Admin', icon: Settings, requiresAuth: true, requiredRole: 'manager' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const filteredNavItems = navItems.filter(item => {
+    if (item.requiresAuth && !isAuthenticated) return false;
+    if (item.requiredRole && user) {
+      const roleHierarchy = { admin: 3, manager: 2, user: 1 };
+      const userLevel = roleHierarchy[user.role as keyof typeof roleHierarchy] || 0;
+      const requiredLevel = roleHierarchy[item.requiredRole as keyof typeof roleHierarchy] || 0;
+      return userLevel >= requiredLevel;
+    }
+    return true;
+  });
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -25,7 +42,7 @@ export default function Header() {
           </Link>
 
           <nav className="hidden md:flex space-x-1">
-            {navItems.map(({ path, label, icon: Icon }) => (
+            {filteredNavItems.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
@@ -42,15 +59,37 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>Sistem Aktif</span>
-            </div>
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center space-x-3 text-sm text-gray-600">
+                  <User className="w-4 h-4" />
+                  <span>{user?.full_name || user?.username}</span>
+                  <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    {user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Yönetici' : 'Kullanıcı'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-medium">Çıkış</span>
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="btn-primary flex items-center space-x-2"
+              >
+                <User className="w-4 h-4" />
+                <span>Giriş Yap</span>
+              </Link>
+            )}
           </div>
         </div>
 
         <nav className="md:hidden pb-4 flex space-x-1 overflow-x-auto">
-          {navItems.map(({ path, label, icon: Icon }) => (
+          {filteredNavItems.map(({ path, label, icon: Icon }) => (
             <Link
               key={path}
               to={path}

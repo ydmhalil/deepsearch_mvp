@@ -88,7 +88,7 @@ export default function EditCategoryModal({
 
   const loadCategoryStats = async (categoryId: number) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/classification/categories/${categoryId}/stats`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/categories/${categoryId}/stats`);
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
@@ -105,7 +105,7 @@ export default function EditCategoryModal({
     setLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/classification/categories/${category.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/categories/${category.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -144,7 +144,7 @@ export default function EditCategoryModal({
     setLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5001/api/classification/categories/${category.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/classification/categories/${category.id}`, {
         method: 'DELETE'
       });
 
